@@ -1,26 +1,18 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Paolu API - 一个 API，接入全球主流模型</title>
 <meta name="description" content="21 个模型、7 个计费分组，按量扣减，兼容 OpenAI 接口规范。迁移只替换 Base URL，业务代码无需改动。" />
-<meta name="theme-color" content="#12100e" />
-<link rel="icon" href="new-api-assets/img/favicon.ico" />
-<script>
-  /* Theme + progressive enhancement flag, runs before first paint. */
-  (function () {
-    var root = document.documentElement;
-    root.classList.add('js');
-    var KEY = 'paolu-theme';
-    var picked = null;
-    try { picked = localStorage.getItem(KEY); } catch (e) { picked = null; }
-    if (picked !== 'dark' && picked !== 'light') {
-      picked = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
-    root.setAttribute('data-theme', picked);
-  })();
-</script>
+</head>
+<body>
+<!-- ==========================================================================
+     New API 首页嵌入范围：从下面这行 <div id="ph-home"> 到它对应的 </div>。
+     整块自带样式与脚本，全部选择器都限定在 #ph-home 之内，不会影响框架 UI。
+     脚本若因注入方式不执行，页面会回退为静态完整版，并按系统深浅色显示。
+     ========================================================================== -->
+<div id="ph-home">
 <style>
   /* ==========================================================================
      Paolu API 模型网关 - 像素酒馆 / 复古终端设计系统
@@ -30,23 +22,23 @@
      Color lock: exactly one accent (amber). Status rows reuse the same amber.
      ========================================================================== */
 
-  @font-face {
+  @font-face{
     font-family: "Departure Mono Local";
     src: url("new-api-assets/fonts/departure-mono.2210cbd801.woff2") format("woff2");
     font-style: normal; font-weight: 400; font-display: swap;
   }
-  @font-face {
+  @font-face{
     font-family: "New Index Display";
     src: url("new-api-assets/fonts/display-variable.e4af272cce.woff2") format("woff2");
     font-style: normal; font-weight: 100 900; font-display: swap;
   }
-  @font-face {
+  @font-face{
     font-family: "Neoris Local";
     src: url("new-api-assets/fonts/neoris-variable.7fda2b476f.woff2") format("woff2");
     font-style: normal; font-weight: 100 900; font-display: swap;
   }
 
-  :root {
+  #ph-home{
     /* Dark: the pub at night. */
     --bg: #12100e;
     --bg-2: #0d0b0a;
@@ -79,7 +71,7 @@
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  [data-theme="light"] {
+  #ph-home[data-theme="light"]{
     /* Light: the same pub on a paper-white afternoon. */
     --bg: #ecebe4;
     --bg-2: #e3e1d9;
@@ -102,12 +94,43 @@
     --grid-tint: rgba(120, 96, 40, 0.06);
   }
 
-  *, *::before, *::after { box-sizing: border-box; }
+  /* No-JS fallback. When this markup is injected into the New API app shell
+     with innerHTML, no script runs and nothing ever sets data-theme, so the
+     page follows the OS preference instead. The light values are repeated
+     here because CSS cannot alias a whole declaration block. */
+  @media (prefers-color-scheme: light){
+    #ph-home:not([data-theme]){
+      --bg: #ecebe4;
+      --bg-2: #e3e1d9;
+      --surface: #f6f5f0;
+      --surface-2: #e7e5dd;
+      --line: #cdc8bc;
+      --line-2: #a49c8d;
+      --ink: #1d1a16;
+      --ink-2: #4b443b;
+      --ink-3: #6d6559;
+      --accent: #e8a33d;
+      --accent-text: #8a5305;
+      --accent-ink: #1a1206;
+      --accent-soft: rgba(196, 130, 24, 0.12);
+      --accent-line: rgba(180, 118, 20, 0.4);
+      --shadow-hard: 4px 4px 0 rgba(60, 50, 34, 0.16);
+      --shadow-soft: 0 18px 40px -30px rgba(60, 48, 30, 0.5);
+      --scrim: linear-gradient(96deg, rgba(236, 235, 228, 0.06) 0%, rgba(236, 235, 228, 0.62) 30%, rgba(236, 235, 228, 0.95) 52%, #ecebe4 72%);
+      --scanline: rgba(0, 0, 0, 0);
+      --grid-tint: rgba(120, 96, 40, 0.06);
+    }
+  }
 
-  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
-  [id] { scroll-margin-top: 78px; }
-  body {
+  #ph-home *, #ph-home *::before, #ph-home *::after{ box-sizing: border-box; }
+
+  #ph-home{ -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  #ph-home [id]{ scroll-margin-top: 78px; }
+  #ph-home{
     margin: 0;
+    /* Contains the scanline overlay, which is absolute rather than fixed so it
+       can never paint over the host application's chrome. */
+    position: relative;
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font-ui);
@@ -117,16 +140,16 @@
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
-  img { max-width: 100%; display: block; }
-  a { color: inherit; text-decoration: none; }
-  button, input, select { font: inherit; color: inherit; }
-  h1, h2, h3, h4, p, dl, dd, dt, pre { margin: 0; }
-  table { border-collapse: collapse; width: 100%; }
+  #ph-home img{ max-width: 100%; display: block; }
+  #ph-home a{ color: inherit; text-decoration: none; }
+  #ph-home button, #ph-home input, #ph-home select{ font: inherit; color: inherit; }
+  #ph-home h1, #ph-home h2, #ph-home h3, #ph-home h4, #ph-home p, #ph-home dl, #ph-home dd, #ph-home dt, #ph-home pre{ margin: 0; }
+  #ph-home table{ border-collapse: collapse; border-spacing: 0; width: 100%; }
 
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  #ph-home :focus-visible{ outline: 2px solid var(--accent); outline-offset: 3px; }
 
   /* Terminal voice: Latin runs, numerals and micro labels come from a pixel mono. */
-  .mono {
+  #ph-home .mono{
     font-family: var(--font-mono);
     font-size: 0.92em;
     letter-spacing: 0.01em;
@@ -134,26 +157,26 @@
   }
 
   /* --- Layout primitives ------------------------------------------------ */
-  .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad-x); }
-  .sec { padding: var(--sec-y) 0; }
-  .sec-line { border-top: 1px solid var(--line); }
+  #ph-home .wrap{ width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad-x); }
+  #ph-home .sec{ padding: var(--sec-y) 0; }
+  #ph-home .sec-line{ border-top: 1px solid var(--line); }
 
-  .sec-head { max-width: 62ch; }
-  .h2 {
+  #ph-home .sec-head{ max-width: 62ch; }
+  #ph-home .h2{
     font-family: var(--font-display);
     font-weight: 800;
     font-size: clamp(28px, 3.6vw, 46px);
     line-height: 1.16;
     letter-spacing: -0.015em;
   }
-  .lede {
+  #ph-home .lede{
     margin-top: 16px;
     color: var(--ink-2);
     font-size: clamp(15px, 1.15vw, 17px);
     max-width: 46ch;
     line-height: 1.85;
   }
-  .kicker {
+  #ph-home .kicker{
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -164,13 +187,13 @@
     text-transform: uppercase;
     margin-bottom: 14px;
   }
-  .kicker::before {
+  #ph-home .kicker::before{
     content: "";
     width: 8px; height: 8px;
     background: var(--accent);
     flex: none;
   }
-  .note {
+  #ph-home .note{
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--ink-3);
@@ -178,12 +201,12 @@
   }
 
   /* --- Panels: one recipe for the whole page ---------------------------- */
-  .panel {
+  #ph-home .panel{
     background: var(--surface);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-soft);
   }
-  .panel-bar {
+  #ph-home .panel-bar{
     display: flex;
     align-items: center;
     gap: 12px;
@@ -195,19 +218,19 @@
     letter-spacing: 0.04em;
     color: var(--ink-2);
   }
-  .panel-bar .grow { flex: 1 1 auto; }
+  #ph-home .panel-bar .grow{ flex: 1 1 auto; }
 
-  .led {
+  #ph-home .led{
     width: 8px; height: 8px;
     background: var(--accent);
     flex: none;
     display: inline-block;
   }
-  .led-pulse { animation: pulse 2.4s steps(1, end); animation-iteration-count: infinite; }
-  @keyframes pulse { 0%, 62% { opacity: 1; } 63%, 100% { opacity: 0.28; } }
+  #ph-home .led-pulse{ animation: pulse 2.4s steps(1, end); animation-iteration-count: infinite; }
+  @keyframes pulse{ 0%, 62% { opacity: 1; } 63%, 100% { opacity: 0.28; } }
 
   /* --- Buttons: square, hard shadow, one accent --------------------------- */
-  .btn {
+  #ph-home .btn{
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -224,19 +247,19 @@
     box-shadow: var(--shadow-hard);
     transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease), background-color 0.16s linear, color 0.16s linear;
   }
-  .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5); }
-  .btn:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); }
-  .btn-ghost {
+  #ph-home .btn:hover{ transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5); }
+  #ph-home .btn:active{ transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); }
+  #ph-home .btn-ghost{
     background: transparent;
     color: var(--ink);
     border-color: var(--line-2);
   }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent-text); }
-  .btn-sm { padding: 9px 14px; font-size: 12.5px; }
+  #ph-home .btn-ghost:hover{ border-color: var(--accent); color: var(--accent-text); }
+  #ph-home .btn-sm{ padding: 9px 14px; font-size: 12.5px; }
 
   /* --- Scanline overlay: fixed, non-interactive, off in light mode -------- */
-  .crt {
-    position: fixed;
+  #ph-home .crt{
+    position: absolute;
     inset: 0;
     z-index: 60;
     pointer-events: none;
@@ -249,51 +272,16 @@
     );
   }
 
-  /* --- Top bar: terminal title bar, one line, 64px ----------------------- */
-  .topbar {
-    position: fixed;
-    inset: 0 0 auto 0;
-    z-index: 50;
-    background: var(--bg);
-    background: color-mix(in srgb, var(--bg) 86%, transparent);
-    border-bottom: 1px solid var(--line);
-    backdrop-filter: blur(10px) saturate(1.1);
-  }
-  .topbar-in {
-    max-width: var(--wrap);
-    margin: 0 auto;
-    padding: 0 var(--pad-x);
-    height: 64px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; flex: none; }
-  /* The site has no uploaded logo, so the wordmark carries the brand and this
-     pixel frame supplies the accent. */
-  .brand-mark {
-    width: 12px; height: 12px;
-    background: var(--accent);
-    box-shadow: inset 0 0 0 3px var(--bg);
-    flex: none;
-  }
-  .brand span {
-    font-family: var(--font-mono);
-    font-size: 16px;
-    letter-spacing: 0.06em;
-  }
-  .nav-links { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; }
-  .nav-links a {
-    padding: 8px 12px;
-    font-size: 14px;
-    color: var(--ink-2);
-    border-bottom: 1px solid transparent;
-    transition: color 0.16s linear, border-color 0.16s linear;
-  }
-  .nav-links a:hover { color: var(--ink); border-bottom-color: var(--accent); }
-  .topbar-acts { display: flex; align-items: center; gap: 10px; flex: none; }
-  .theme-btn {
-    display: inline-flex;
+  /* --- Utility strip control: shown only when JS can drive it ------------ */
+  /* Embed hardening: the host application ships its own resets and component
+     styles. Restate the page's square shape (the id makes these win over the
+     host's class level rules) and neutralise the controls it likes to restyle. */
+  #ph-home, #ph-home *, #ph-home *::before, #ph-home *::after { border-radius: 0; }
+  #ph-home button { -webkit-appearance: none; appearance: none; background-image: none; }
+  #ph-home .search input { padding: 0; }
+
+  #ph-home .theme-btn{
+    display: none;
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
@@ -306,49 +294,28 @@
     color: var(--ink-2);
     transition: border-color 0.16s linear, color 0.16s linear;
   }
-  .theme-btn:hover { border-color: var(--accent); color: var(--ink); }
-  .theme-btn .knob { width: 8px; height: 8px; background: var(--line-2); }
-  .theme-btn[aria-pressed="true"] .knob { background: var(--accent); }
-  .menu-btn {
-    display: none;
-    padding: 9px 12px;
-    background: transparent;
-    border: 1px solid var(--line-2);
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-  }
-  .nav-drawer {
-    display: none;
-    border-top: 1px solid var(--line);
-    background: var(--bg);
-    padding: 8px var(--pad-x) 18px;
-  }
-  .nav-drawer a {
-    display: block;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 15px;
-    color: var(--ink-2);
-  }
-  .topbar[data-open="true"] .nav-drawer { display: block; }
+  #ph-home.js .theme-btn{ display: inline-flex; }
+  #ph-home .theme-btn:hover{ border-color: var(--accent); color: var(--ink); }
+  #ph-home .theme-btn .knob{ width: 8px; height: 8px; background: var(--line-2); }
+  #ph-home .theme-btn[aria-pressed="true"] .knob{ background: var(--accent); }
+  /* Controls that do nothing without JS stay hidden instead of looking broken. */
+  #ph-home:not(.js) .js-only{ display: none !important; }
 
   /* --- Compliance notice: the first thing under the fixed nav ------------ */
-  .notice {
+  #ph-home .notice{
     background: var(--surface);
     border-bottom: 1px solid var(--line);
-    /* Carries the nav clearance that used to sit on the hero. */
-    padding-top: 64px;
+    padding-top: 16px;
   }
-  .notice-in {
+  #ph-home .notice-in{
     display: flex;
     align-items: flex-start;
     gap: 14px;
     padding-top: 18px;
     padding-bottom: 18px;
   }
-  .notice-mark {
+  #ph-home .notice-body{ flex: 1 1 auto; min-width: 0; }
+  #ph-home .notice-mark{
     width: 26px;
     height: 26px;
     flex: none;
@@ -360,8 +327,8 @@
     font-size: 14px;
     line-height: 1;
   }
-  .notice-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-  .notice-text {
+  #ph-home .notice-title{ font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  #ph-home .notice-text{
     margin-top: 6px;
     color: var(--ink-2);
     font-size: 14.5px;
@@ -373,8 +340,8 @@
   }
 
   /* --- Hero: film strip band with copy in the tavern's dark half ---------- */
-  .hero { position: relative; padding-top: 0; }
-  .hero-band {
+  #ph-home .hero{ position: relative; padding-top: 0; }
+  #ph-home .hero-band{
     position: relative;
     height: min(72vh, calc(100vw / 2.357));
     min-height: 380px;
@@ -382,13 +349,13 @@
     background: var(--bg-2);
     border-bottom: 1px solid var(--line);
   }
-  .hero-band img {
+  #ph-home .hero-band img{
     width: 100%; height: 100%;
     object-fit: cover;
     object-position: center 72%;
   }
-  .hero-scrim { position: absolute; inset: 0; background: var(--scrim); }
-  .hero-copy {
+  #ph-home .hero-scrim{ position: absolute; inset: 0; background: var(--scrim); }
+  #ph-home .hero-copy{
     position: absolute;
     top: 0;
     right: 0;
@@ -401,7 +368,7 @@
     justify-content: center;
     gap: 22px;
   }
-  .hero h1 {
+  #ph-home .hero h1{
     font-family: var(--font-display);
     font-weight: 800;
     font-size: clamp(30px, 3.5vw, 52px);
@@ -411,23 +378,23 @@
        instead of leaving a two-character orphan on the second line. */
     max-width: 7.6em;
   }
-  .hero h1 .mono {
+  #ph-home .hero h1 .mono{
     font-size: 0.94em;
     color: var(--accent-text);
     letter-spacing: 0.02em;
   }
-  .hero-sub {
+  #ph-home .hero-sub{
     color: var(--ink-2);
     font-size: clamp(15px, 1.1vw, 16.5px);
     line-height: 1.8;
     max-width: 34ch;
   }
-  .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+  #ph-home .hero-ctas{ display: flex; flex-wrap: wrap; gap: 12px; }
 
   /* --- Terminal: the product proof, overlapping the hero band ------------ */
-  .term-wrap { position: relative; z-index: 3; margin-top: -76px; }
-  .term { max-width: 900px; }
-  .term-body {
+  #ph-home .term-wrap{ position: relative; z-index: 3; margin-top: -76px; }
+  #ph-home .term{ max-width: 900px; }
+  #ph-home .term-body{
     padding: 16px 18px 6px;
     background: var(--bg-2);
     /* Fixed height: rows are appended at run time, so the panel must never
@@ -435,7 +402,7 @@
     height: 262px;
     overflow: hidden;
   }
-  .log {
+  #ph-home .log{
     font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.85;
@@ -443,10 +410,10 @@
     height: 100%;
     overflow: hidden;
   }
-  .log .ln { display: block; }
+  #ph-home .log .ln{ display: block; }
   /* Request rows are a real column grid: a row always fits the panel width
      instead of pushing the box wider and spawning a scrollbar. */
-  .log .ln.req {
+  #ph-home .log .ln.req{
     display: grid;
     /* Fixed track sizes stay left-packed like real terminal output: unlike
        `auto`, they do not soak up the leftover space. The model track may
@@ -455,22 +422,22 @@
     gap: 0 12px;
     align-items: baseline;
   }
-  .log .ln.req > span { white-space: nowrap; }
-  .log .ln.req .m { overflow: hidden; text-overflow: ellipsis; }
-  .log .ln.req .s { color: var(--ink-3); }
-  .log .ln .t { color: var(--ink-3); }
+  #ph-home .log .ln.req > span{ white-space: nowrap; }
+  #ph-home .log .ln.req .m{ overflow: hidden; text-overflow: ellipsis; }
+  #ph-home .log .ln.req .s{ color: var(--ink-3); }
+  #ph-home .log .ln .t{ color: var(--ink-3); }
   /* Warn and error rows carry prose, so they wrap instead of overflowing. */
-  .log .ln.msg { display: flex; gap: 8px; align-items: baseline; white-space: normal; }
-  .log .ln.msg .t { flex: none; }
-  .log .ln.msg .x { flex: 1 1 auto; min-width: 0; }
-  .log .ln.ok { color: var(--ink-2); }
-  .log .ln.warn { color: var(--accent-text); }
-  .log .ln.err { color: var(--ink); }
-  .log .ln .tag { background: var(--accent); color: var(--accent-ink); padding: 0 5px; flex: none; }
-  .log .ln .tag-warn { border: 1px solid var(--accent-line); color: var(--accent-text); padding: 0 4px; flex: none; }
-  .log .ln.fresh { animation: ln-in 0.32s var(--ease); }
-  @keyframes ln-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  .term-foot {
+  #ph-home .log .ln.msg{ display: flex; gap: 8px; align-items: baseline; white-space: normal; }
+  #ph-home .log .ln.msg .t{ flex: none; }
+  #ph-home .log .ln.msg .x{ flex: 1 1 auto; min-width: 0; }
+  #ph-home .log .ln.ok{ color: var(--ink-2); }
+  #ph-home .log .ln.warn{ color: var(--accent-text); }
+  #ph-home .log .ln.err{ color: var(--ink); }
+  #ph-home .log .ln .tag{ background: var(--accent); color: var(--accent-ink); padding: 0 5px; flex: none; }
+  #ph-home .log .ln .tag-warn{ border: 1px solid var(--accent-line); color: var(--accent-text); padding: 0 4px; flex: none; }
+  #ph-home .log .ln.fresh{ animation: ln-in 0.32s var(--ease); }
+  @keyframes ln-in{ from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  #ph-home .term-foot{
     display: flex;
     flex-wrap: wrap;
     gap: 10px 22px;
@@ -482,8 +449,8 @@
     font-size: 12px;
     color: var(--ink-3);
   }
-  .term-foot b { color: var(--ink); font-weight: 400; }
-  .term-legend {
+  #ph-home .term-foot b{ color: var(--ink); font-weight: 400; }
+  #ph-home .term-legend{
     display: flex;
     flex-wrap: wrap;
     gap: 6px 18px;
@@ -494,72 +461,72 @@
   }
 
   /* --- Compatibility ticker: the page's single horizontal loop ---------- */
-  .compat { padding: 30px 0 6px; border-bottom: 1px solid var(--line); }
-  .compat-label {
+  #ph-home .compat{ padding: 30px 0 6px; border-bottom: 1px solid var(--line); }
+  #ph-home .compat-label{
     font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 0.1em;
     color: var(--ink-3);
     margin-bottom: 16px;
   }
-  .ticker { overflow: hidden; padding-bottom: 26px; }
-  .ticker-track {
+  #ph-home .ticker{ overflow: hidden; padding-bottom: 26px; }
+  #ph-home .ticker-track{
     display: flex;
     width: max-content;
     animation: tick 52s linear;
     animation-iteration-count: infinite;
   }
-  .ticker:hover .ticker-track { animation-play-state: paused; }
-  @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .ticker-set { display: flex; align-items: center; gap: 34px; padding-right: 34px; }
-  .ticker-set span {
+  #ph-home .ticker:hover .ticker-track{ animation-play-state: paused; }
+  @keyframes tick{ from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  #ph-home .ticker-set{ display: flex; align-items: center; gap: 34px; padding-right: 34px; }
+  #ph-home .ticker-set span{
     font-family: var(--font-mono);
     font-size: 14px;
     letter-spacing: 0.03em;
     color: var(--ink-2);
     white-space: nowrap;
   }
-  .ticker-set i { width: 6px; height: 6px; background: var(--line-2); }
+  #ph-home .ticker-set i{ width: 6px; height: 6px; background: var(--line-2); }
 
   /* --- Live routing board ------------------------------------------------- */
-  .live-grid {
+  #ph-home .live-grid{
     display: grid;
     grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
     gap: clamp(28px, 4vw, 64px);
     align-items: start;
   }
-  .board { padding: 0 0 14px; }
-  .board-head, .board-row {
+  #ph-home .board{ padding: 0 0 14px; }
+  #ph-home .board-head, #ph-home .board-row{
     display: grid;
     grid-template-columns: minmax(0, 1.7fr) 88px 72px 84px;
     gap: 14px;
     align-items: center;
     padding: 13px 16px;
   }
-  .board-head {
+  #ph-home .board-head{
     font-family: var(--font-mono);
     font-size: 11.5px;
     letter-spacing: 0.1em;
     color: var(--ink-3);
     border-bottom: 1px solid var(--line);
   }
-  .board-row { border-bottom: 1px solid var(--line); }
-  .board-row:last-child { border-bottom: 0; }
-  .board-row .line-name { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
-  .board-row .line-name small {
+  #ph-home .board-row{ border-bottom: 1px solid var(--line); }
+  #ph-home .board-row:last-child{ border-bottom: 0; }
+  #ph-home .board-row .line-name{ display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+  #ph-home .board-row .line-name small{
     display: block;
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--ink-3);
     letter-spacing: 0.02em;
   }
-  .board-row .val {
+  #ph-home .board-row .val{
     font-family: var(--font-mono);
     font-size: 13px;
     color: var(--ink-2);
     font-variant-numeric: tabular-nums;
   }
-  .board-row .state {
+  #ph-home .board-row .state{
     display: flex;
     align-items: center;
     gap: 8px;
@@ -569,13 +536,13 @@
   }
 
   /* --- Bento: five cells, three of them carry non-text material ---------- */
-  .bento {
+  #ph-home .bento{
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 16px;
     margin-top: 44px;
   }
-  .cell {
+  #ph-home .cell{
     background: var(--surface);
     border: 1px solid var(--line);
     padding: 24px;
@@ -584,24 +551,24 @@
     gap: 12px;
     min-height: 190px;
   }
-  .cell h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-  .cell p { color: var(--ink-2); font-size: 14.5px; line-height: 1.8; }
-  .cell-photo { padding: 0; justify-content: flex-end; overflow: hidden; position: relative; }
-  .cell-photo img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-  .cell-photo .photo-copy {
+  #ph-home .cell h3{ font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  #ph-home .cell p{ color: var(--ink-2); font-size: 14.5px; line-height: 1.8; }
+  #ph-home .cell-photo{ padding: 0; justify-content: flex-end; overflow: hidden; position: relative; }
+  #ph-home .cell-photo img{ width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  #ph-home .cell-photo .photo-copy{
     position: relative;
     padding: 22px;
     background: linear-gradient(to top, var(--surface) 40%, rgba(25, 21, 18, 0));
   }
-  [data-theme="light"] .cell-photo .photo-copy {
+  #ph-home[data-theme="light"] .cell-photo .photo-copy{
     background: linear-gradient(to top, var(--surface) 40%, rgba(246, 245, 240, 0));
   }
-  .cell-a { grid-column: span 7; min-height: 300px; }
-  .cell-b { grid-column: span 5; }
-  .cell-c { grid-column: span 5; }
-  .cell-d { grid-column: span 3; }
-  .cell-e { grid-column: span 4; }
-  .diagram {
+  #ph-home .cell-a{ grid-column: span 7; min-height: 300px; }
+  #ph-home .cell-b{ grid-column: span 5; }
+  #ph-home .cell-c{ grid-column: span 5; }
+  #ph-home .cell-d{ grid-column: span 3; }
+  #ph-home .cell-e{ grid-column: span 4; }
+  #ph-home .diagram{
     font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.75;
@@ -612,8 +579,8 @@
     border: 1px solid var(--line);
     padding: 14px;
   }
-  .kv { display: grid; gap: 0; }
-  .kv div {
+  #ph-home .kv{ display: grid; gap: 0; }
+  #ph-home .kv div{
     display: flex;
     justify-content: space-between;
     gap: 14px;
@@ -621,15 +588,15 @@
     border-bottom: 1px solid var(--line);
     font-size: 13.5px;
   }
-  .kv div:last-child { border-bottom: 0; }
-  .kv dt, .kv span:first-child { color: var(--ink-3); }
-  .kv span:last-child { font-family: var(--font-mono); font-size: 13px; }
-  .spark { display: flex; align-items: flex-end; gap: 3px; height: 46px; }
-  .spark i { flex: 1 1 0; background: var(--accent); height: 30%; }
-  .spark i.dim { background: var(--line-2); }
-  .metrics { display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
-  .metrics b { color: var(--ink); font-weight: 400; }
-  .snippet {
+  #ph-home .kv div:last-child{ border-bottom: 0; }
+  #ph-home .kv dt, #ph-home .kv span:first-child{ color: var(--ink-3); }
+  #ph-home .kv span:last-child{ font-family: var(--font-mono); font-size: 13px; }
+  #ph-home .spark{ display: flex; align-items: flex-end; gap: 3px; height: 46px; }
+  #ph-home .spark i{ flex: 1 1 0; background: var(--accent); height: 30%; }
+  #ph-home .spark i.dim{ background: var(--line-2); }
+  #ph-home .metrics{ display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
+  #ph-home .metrics b{ color: var(--ink); font-weight: 400; }
+  #ph-home .snippet{
     font-family: var(--font-mono);
     font-size: 12.5px;
     color: var(--ink);
@@ -642,17 +609,17 @@
     align-items: center;
     overflow-x: auto;
   }
-  .snippet span:last-child { color: var(--ink-3); font-size: 11px; }
+  #ph-home .snippet span:last-child{ color: var(--ink-3); font-size: 11px; }
 
   /* --- Migrate: tabs + before/after code --------------------------------- */
-  .migrate-grid {
+  #ph-home .migrate-grid{
     display: grid;
     grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
     gap: clamp(28px, 4vw, 60px);
     align-items: start;
   }
-  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
-  .tab {
+  #ph-home .tabs{ display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+  #ph-home .tab{
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
@@ -664,12 +631,12 @@
     color: var(--ink-3);
     transition: color 0.16s linear, border-color 0.16s linear;
   }
-  .tab:hover { color: var(--ink); }
-  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
-  .code-body { padding: 18px 18px 20px; background: var(--bg-2); }
-  .code-pane { display: none; }
-  .code-pane.on { display: block; }
-  .code {
+  #ph-home .tab:hover{ color: var(--ink); }
+  #ph-home .tab[aria-selected="true"]{ color: var(--ink); border-bottom-color: var(--accent); }
+  #ph-home .code-body{ padding: 18px 18px 20px; background: var(--bg-2); }
+  #ph-home .code-pane{ display: none; }
+  #ph-home .code-pane.on{ display: block; }
+  #ph-home .code{
     font-family: var(--font-mono);
     font-size: 12.8px;
     line-height: 1.95;
@@ -677,24 +644,24 @@
     overflow-x: auto;
     color: var(--ink-2);
   }
-  .code .rowline { display: block; white-space: pre; padding-left: 14px; border-left: 2px solid transparent; }
-  .code .old { border-left-color: var(--line-2); color: var(--ink-3); }
-  .code .new { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
-  .code .cm { color: var(--ink-3); }
-  .code .st { color: var(--accent-text); }
-  .copy-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
-  .copied { color: var(--accent-text); font-family: var(--font-mono); font-size: 12px; opacity: 0; transition: opacity 0.2s linear; }
-  .copied.on { opacity: 1; }
+  #ph-home .code .rowline{ display: block; white-space: pre; padding-left: 14px; border-left: 2px solid transparent; }
+  #ph-home .code .old{ border-left-color: var(--line-2); color: var(--ink-3); }
+  #ph-home .code .new{ border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  #ph-home .code .cm{ color: var(--ink-3); }
+  #ph-home .code .st{ color: var(--accent-text); }
+  #ph-home .copy-row{ display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+  #ph-home .copied{ color: var(--accent-text); font-family: var(--font-mono); font-size: 12px; opacity: 0; transition: opacity 0.2s linear; }
+  #ph-home .copied.on{ opacity: 1; }
 
   /* --- Catalog: filters + real table ------------------------------------- */
-  .cat-tools {
+  #ph-home .cat-tools{
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
     margin: 30px 0 20px;
   }
-  .search {
+  #ph-home .search{
     display: flex;
     align-items: center;
     gap: 10px;
@@ -704,19 +671,19 @@
     min-width: 280px;
     flex: 1 1 280px;
   }
-  .search input {
+  #ph-home .search input{
     border: 0;
     background: transparent;
     outline: none;
     width: 100%;
     font-size: 14px;
   }
-  .search input::placeholder { color: var(--ink-3); opacity: 1; }
-  .search .mono { color: var(--ink-3); white-space: nowrap; flex: none; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .chip-label { color: var(--ink-3); font-size: 12px; white-space: nowrap; }
-  .chip {
+  #ph-home .search input::placeholder{ color: var(--ink-3); opacity: 1; }
+  #ph-home .search .mono{ color: var(--ink-3); white-space: nowrap; flex: none; }
+  #ph-home .chips{ display: flex; flex-wrap: wrap; gap: 8px; }
+  #ph-home .chip-group{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #ph-home .chip-label{ color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+  #ph-home .chip{
     background: transparent;
     border: 1px solid var(--line-2);
     padding: 9px 14px;
@@ -725,16 +692,16 @@
     color: var(--ink-2);
     transition: border-color 0.16s linear, color 0.16s linear, background-color 0.16s linear;
   }
-  .chip:hover { border-color: var(--accent); color: var(--ink); }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .cat-table { border: 1px solid var(--line); background: var(--surface); }
-  .cat-table th, .cat-table td {
+  #ph-home .chip:hover{ border-color: var(--accent); color: var(--ink); }
+  #ph-home .chip[aria-pressed="true"]{ background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  #ph-home .cat-table{ border: 1px solid var(--line); background: var(--surface); }
+  #ph-home .cat-table th, #ph-home .cat-table td{
     text-align: left;
     padding: 13px 16px;
     border-bottom: 1px solid var(--line);
     font-size: 14px;
   }
-  .cat-table thead th {
+  #ph-home .cat-table thead th{
     font-family: var(--font-mono);
     font-size: 11.5px;
     letter-spacing: 0.1em;
@@ -742,15 +709,15 @@
     background: var(--surface-2);
     font-weight: 400;
   }
-  .cat-table tbody tr:last-child td { border-bottom: 0; }
-  .cat-table tbody tr:hover td { background: var(--accent-soft); }
-  .cat-table .m { font-family: var(--font-mono); font-size: 13.5px; }
-  .cat-table .m span { display: block; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cat-table .tags { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
-  .cat-table .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
-  .cat-table .hide { display: none; }
-  .cat-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
-  .empty {
+  #ph-home .cat-table tbody tr:last-child td{ border-bottom: 0; }
+  #ph-home .cat-table tbody tr:hover td{ background: var(--accent-soft); }
+  #ph-home .cat-table .m{ font-family: var(--font-mono); font-size: 13.5px; }
+  #ph-home .cat-table .m span{ display: block; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ph-home .cat-table .tags{ font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+  #ph-home .cat-table .num{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  #ph-home .cat-table .hide{ display: none; }
+  #ph-home .cat-foot{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+  #ph-home .empty{
     display: none;
     border: 1px solid var(--line);
     border-top: 0;
@@ -759,54 +726,54 @@
     color: var(--ink-2);
     font-size: 14.5px;
   }
-  .empty.on { display: block; }
-  .empty .mono { display: block; color: var(--ink-3); font-size: 12px; margin-bottom: 10px; }
+  #ph-home .empty.on{ display: block; }
+  #ph-home .empty .mono{ display: block; color: var(--ink-3); font-size: 12px; margin-bottom: 10px; }
 
   /* --- Steps: vertical rail, not three equal cards ----------------------- */
-  .steps-grid {
+  #ph-home .steps-grid{
     display: grid;
     grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
     gap: clamp(28px, 4vw, 64px);
     align-items: start;
   }
-  .rail { border-left: 1px solid var(--line); }
-  .step { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 20px; padding: 26px 0 26px 0; }
-  .step + .step { border-top: 1px solid var(--line); }
-  .step-num {
+  #ph-home .rail{ border-left: 1px solid var(--line); }
+  #ph-home .step{ display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 20px; padding: 26px 0 26px 0; }
+  #ph-home .step + .step{ border-top: 1px solid var(--line); }
+  #ph-home .step-num{
     font-family: var(--font-mono);
     font-size: 22px;
     color: var(--accent-text);
     letter-spacing: 0.04em;
     padding-left: 18px;
   }
-  .step h3 { font-size: 17.5px; font-weight: 700; }
-  .step p { color: var(--ink-2); font-size: 14.5px; line-height: 1.8; margin-top: 6px; max-width: 44ch; }
-  .step .mono { color: var(--ink-3); font-size: 12px; display: block; margin-top: 8px; }
+  #ph-home .step h3{ font-size: 17.5px; font-weight: 700; }
+  #ph-home .step p{ color: var(--ink-2); font-size: 14.5px; line-height: 1.8; margin-top: 6px; max-width: 44ch; }
+  #ph-home .step .mono{ color: var(--ink-3); font-size: 12px; display: block; margin-top: 8px; }
 
   /* --- Closing CTA: night band, day version in light mode ---------------- */
-  .endcta { position: relative; overflow: hidden; border-top: 1px solid var(--line); background: var(--bg-2); }
-  .endcta img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .endcta .scrim { position: absolute; inset: 0; background: var(--scrim); }
-  .endcta-in {
+  #ph-home .endcta{ position: relative; overflow: hidden; border-top: 1px solid var(--line); background: var(--bg-2); }
+  #ph-home .endcta img{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #ph-home .endcta .scrim{ position: absolute; inset: 0; background: var(--scrim); }
+  #ph-home .endcta-in{
     position: relative;
     min-height: min(56vh, calc(100vw / 1.79));
     display: flex;
     align-items: center;
     justify-content: flex-end;
   }
-  .endcta-copy { width: min(46%, 560px); padding: 56px var(--pad-x) 56px 0; }
-  .endcta h2 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 3.1vw, 42px); line-height: 1.18; letter-spacing: -0.015em; }
-  .endcta p { margin-top: 14px; color: var(--ink-2); font-size: 15.5px; line-height: 1.8; max-width: 36ch; }
-  .endcta .hero-ctas { margin-top: 24px; }
+  #ph-home .endcta-copy{ width: min(46%, 560px); padding: 56px var(--pad-x) 56px 0; }
+  #ph-home .endcta h2{ font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 3.1vw, 42px); line-height: 1.18; letter-spacing: -0.015em; }
+  #ph-home .endcta p{ margin-top: 14px; color: var(--ink-2); font-size: 15.5px; line-height: 1.8; max-width: 36ch; }
+  #ph-home .endcta .hero-ctas{ margin-top: 24px; }
 
   /* --- Footer ------------------------------------------------------------ */
-  .foot { border-top: 1px solid var(--line); padding: 54px 0 34px; }
-  .foot-grid {
+  #ph-home .foot{ border-top: 1px solid var(--line); padding: 54px 0 34px; }
+  #ph-home .foot-grid{
     display: grid;
     grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 0.7fr));
     gap: 32px;
   }
-  .foot h4 {
+  #ph-home .foot h4{
     font-family: var(--font-mono);
     font-size: 11.5px;
     letter-spacing: 0.12em;
@@ -814,15 +781,15 @@
     font-weight: 400;
     margin-bottom: 14px;
   }
-  .foot ul { list-style: none; margin: 0; padding: 0; }
-  .foot li { margin-bottom: 10px; }
-  .foot a { color: var(--ink-2); font-size: 14px; }
-  .foot a:hover { color: var(--accent-text); }
-  .foot-brand { display: flex; align-items: center; gap: 12px; }
-  .foot-brand .brand-mark { width: 18px; height: 18px; box-shadow: inset 0 0 0 5px var(--bg); }
-  .foot-brand b { font-family: var(--font-mono); font-size: 17px; letter-spacing: 0.06em; font-weight: 400; }
-  .foot-about { margin-top: 14px; color: var(--ink-2); font-size: 14px; max-width: 34ch; line-height: 1.8; }
-  .foot-legal {
+  #ph-home .foot ul{ list-style: none; margin: 0; padding: 0; }
+  #ph-home .foot li{ margin-bottom: 10px; }
+  #ph-home .foot a{ color: var(--ink-2); font-size: 14px; }
+  #ph-home .foot a:hover{ color: var(--accent-text); }
+  #ph-home .foot-brand{ display: flex; align-items: center; gap: 12px; }
+  #ph-home .foot-brand .brand-mark{ width: 18px; height: 18px; box-shadow: inset 0 0 0 5px var(--bg); }
+  #ph-home .foot-brand b{ font-family: var(--font-mono); font-size: 17px; letter-spacing: 0.06em; font-weight: 400; }
+  #ph-home .foot-about{ margin-top: 14px; color: var(--ink-2); font-size: 14px; max-width: 34ch; line-height: 1.8; }
+  #ph-home .foot-legal{
     margin-top: 44px;
     padding-top: 20px;
     border-top: 1px solid var(--line);
@@ -836,21 +803,21 @@
   }
 
   /* --- Reveal + motion policy ------------------------------------------- */
-  html.js .rv { opacity: 0; transform: translateY(16px); transition: opacity 0.62s var(--ease), transform 0.62s var(--ease); transition-delay: var(--d, 0ms); }
-  html.js .rv.in { opacity: 1; transform: none; }
+  #ph-home.js .rv{ opacity: 0; transform: translateY(16px); transition: opacity 0.62s var(--ease), transform 0.62s var(--ease); transition-delay: var(--d, 0ms); }
+  #ph-home.js .rv.in{ opacity: 1; transform: none; }
 
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    html.js .rv { opacity: 1 !important; transform: none !important; transition: none !important; }
-    .ticker-track { animation: none !important; }
-    .led-pulse { animation: none !important; }
-    .log .ln.fresh { animation: none !important; }
-    .btn { transition: none; }
-    .btn:hover, .btn:active { transform: none; }
-    * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+  @media (prefers-reduced-motion: reduce){
+    #ph-home{ scroll-behavior: auto; }
+    #ph-home.js .rv{ opacity: 1 !important; transform: none !important; transition: none !important; }
+    #ph-home .ticker-track{ animation: none !important; }
+    #ph-home .led-pulse{ animation: none !important; }
+    #ph-home .log .ln.fresh{ animation: none !important; }
+    #ph-home .btn{ transition: none; }
+    #ph-home .btn:hover, #ph-home .btn:active{ transform: none; }
+    #ph-home *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
   }
 
-  .skip {
+  #ph-home .skip{
     position: absolute;
     left: -9999px;
     top: 0;
@@ -861,102 +828,89 @@
     font-family: var(--font-mono);
     font-size: 13px;
   }
-  .skip:focus { left: 8px; top: 8px; }
+  #ph-home .skip:focus{ left: 8px; top: 8px; }
 
   /* --- Responsive: every section declares its own collapse -------------- */
-  @media (max-width: 1080px) {
-    .live-grid, .migrate-grid, .steps-grid { grid-template-columns: minmax(0, 1fr); }
-    .cell-a, .cell-b, .cell-c, .cell-d, .cell-e { grid-column: span 12; }
-    .cell-a { min-height: 260px; }
+  @media (max-width: 1080px){
+    #ph-home .live-grid, #ph-home .migrate-grid, #ph-home .steps-grid{ grid-template-columns: minmax(0, 1fr); }
+    #ph-home .cell-a, #ph-home .cell-b, #ph-home .cell-c, #ph-home .cell-d, #ph-home .cell-e{ grid-column: span 12; }
+    #ph-home .cell-a{ min-height: 260px; }
   }
-  @media (max-width: 860px) {
-    .nav-links, .topbar-acts .btn { display: none; }
-    .menu-btn { display: inline-flex; }
-    .board-head, .board-row { grid-template-columns: minmax(0, 1.5fr) 78px 80px; }
-    .board-head span:nth-child(3), .board-row .models { display: none; }
-    .hero-band { height: min(56vh, calc(100vw / 1.2)); min-height: 320px; }
-    .hero-band img { object-position: 30% center; }
-    .hero-scrim { background: linear-gradient(to top, var(--bg) 4%, rgba(18, 16, 14, 0.5) 46%, rgba(18, 16, 14, 0.15) 100%); }
-    [data-theme="light"] .hero-scrim { background: linear-gradient(to top, var(--bg) 4%, rgba(236, 235, 228, 0.7) 46%, rgba(236, 235, 228, 0.2) 100%); }
-    .hero-copy {
+  @media (max-width: 860px){
+    #ph-home .board-head, #ph-home .board-row{ grid-template-columns: minmax(0, 1.5fr) 78px 80px; }
+    #ph-home .board-head span:nth-child(3), #ph-home .board-row .models{ display: none; }
+    #ph-home .hero-band{ height: min(56vh, calc(100vw / 1.2)); min-height: 320px; }
+    #ph-home .hero-band img{ object-position: 30% center; }
+    #ph-home .hero-scrim{ background: linear-gradient(to top, var(--bg) 4%, rgba(18, 16, 14, 0.5) 46%, rgba(18, 16, 14, 0.15) 100%); }
+    #ph-home[data-theme="light"] .hero-scrim{ background: linear-gradient(to top, var(--bg) 4%, rgba(236, 235, 228, 0.7) 46%, rgba(236, 235, 228, 0.2) 100%); }
+    #ph-home .hero-copy{
       position: static;
       width: 100%;
       padding: 26px var(--pad-x) 0;
       gap: 18px;
     }
-    .hero-sub { max-width: 100%; }
-    .term-wrap { margin-top: 26px; }
-    .endcta-in { min-height: 0; justify-content: flex-start; align-items: flex-end; }
-    .endcta img { object-position: 26% center; }
-    .endcta .scrim { background: linear-gradient(to top, var(--bg) 18%, rgba(18, 16, 14, 0.72) 60%, rgba(18, 16, 14, 0.3) 100%); }
-    [data-theme="light"] .endcta .scrim { background: linear-gradient(to top, var(--bg) 18%, rgba(236, 235, 228, 0.86) 60%, rgba(236, 235, 228, 0.4) 100%); }
-    .endcta-copy { width: 100%; padding: 96px var(--pad-x) 40px; }
-    .foot-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
-    .cat-table .col-ctx, .cat-table .col-tags { display: none; }
-    .tab { padding: 10px 12px; font-size: 12px; }
+    #ph-home .hero-sub{ max-width: 100%; }
+    #ph-home .term-wrap{ margin-top: 26px; }
+    #ph-home .endcta-in{ min-height: 0; justify-content: flex-start; align-items: flex-end; }
+    #ph-home .endcta img{ object-position: 26% center; }
+    #ph-home .endcta .scrim{ background: linear-gradient(to top, var(--bg) 18%, rgba(18, 16, 14, 0.72) 60%, rgba(18, 16, 14, 0.3) 100%); }
+    #ph-home[data-theme="light"] .endcta .scrim{ background: linear-gradient(to top, var(--bg) 18%, rgba(236, 235, 228, 0.86) 60%, rgba(236, 235, 228, 0.4) 100%); }
+    #ph-home .endcta-copy{ width: 100%; padding: 96px var(--pad-x) 40px; }
+    #ph-home .foot-grid{ grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+    #ph-home .cat-table .col-ctx, #ph-home .cat-table .col-tags{ display: none; }
+    #ph-home .tab{ padding: 10px 12px; font-size: 12px; }
   }
-  @media (max-width: 560px) {
-    .brand span { font-size: 14px; }
-    .cell { padding: 20px; }
-    .step { grid-template-columns: 42px minmax(0, 1fr); gap: 14px; }
-    .step-num { font-size: 18px; padding-left: 12px; }
-    .cat-table th, .cat-table td { padding: 11px 12px; }
-    .cat-table .col-group { display: none; }
-    .log { font-size: 10.5px; }
-    .log .ln.req { gap: 0 8px; }
-    .foot-grid { grid-template-columns: minmax(0, 1fr); }
-    .search { min-width: 100%; }
+  @media (max-width: 560px){
+    #ph-home .cell{ padding: 20px; }
+    #ph-home .step{ grid-template-columns: 42px minmax(0, 1fr); gap: 14px; }
+    #ph-home .step-num{ font-size: 18px; padding-left: 12px; }
+    #ph-home .cat-table th, #ph-home .cat-table td{ padding: 11px 12px; }
+    #ph-home .cat-table .col-group{ display: none; }
+    #ph-home .log{ font-size: 10.5px; }
+    #ph-home .log .ln.req{ gap: 0 8px; }
+    #ph-home .foot-grid{ grid-template-columns: minmax(0, 1fr); }
+    #ph-home .search{ min-width: 100%; }
   }
 </style>
-</head>
-<body>
-<a class="skip" href="#main">跳到主要内容</a>
+<script>
+  /* Theme + progressive enhancement flag. Runs inside the wrapper, never on
+     document.documentElement, so the host application keeps its own theme.
+     When the host injects this markup with innerHTML no script runs at all:
+     the prefers-color-scheme fallback in the CSS covers that case. */
+  (function () {
+    var home = document.getElementById('ph-home');
+    if (!home) { return; }
+    home.classList.add('js');
+    var picked = null;
+    try { picked = localStorage.getItem('paolu-theme'); } catch (e) { picked = null; }
+    if (picked !== 'dark' && picked !== 'light') {
+      picked = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    home.setAttribute('data-theme', picked);
+  })();
+</script>
+<a class="skip" href="#ph-main">跳到主要内容</a>
 <div class="crt" aria-hidden="true"></div>
 
-<nav class="topbar" id="topbar" aria-label="主导航">
-  <div class="topbar-in">
-    <a class="brand" href="#top" aria-label="Paolu API 首页">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span>PAOLU API</span>
-    </a>
-    <div class="nav-links">
-      <a href="https://paoluapi.xyz/pricing">价格</a>
-      <a href="#models">模型目录</a>
-      <a href="#compat">兼容客户端</a>
-      <a href="https://paoluapi.xyz/docs">文档</a>
-    </div>
-    <div class="topbar-acts">
-      <button class="theme-btn" id="themeBtn" type="button" aria-pressed="false" aria-label="切换夜间与日间主题" title="切换夜间与日间主题">
-        <span class="knob" aria-hidden="true"></span>
-        <span class="t-label" id="themeLabel">夜间</span>
-      </button>
-      <a class="btn btn-sm" href="https://paoluapi.xyz/console">进入控制台</a>
-      <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="navDrawer">菜单</button>
-    </div>
-  </div>
-  <div class="nav-drawer" id="navDrawer">
-    <a href="https://paoluapi.xyz/console">控制台</a>
-    <a href="https://paoluapi.xyz/pricing">价格</a>
-    <a href="#models">模型目录</a>
-    <a href="#compat">兼容客户端</a>
-    <a href="https://paoluapi.xyz/docs">文档</a>
-  </div>
-</nav>
 
-<main id="main">
+<main id="ph-main">
   <!-- ===================== SERVICE NOTICE ===================== -->
   <aside class="notice" role="note" aria-label="服务范围提醒">
     <div class="wrap notice-in">
       <span class="notice-mark mono" aria-hidden="true">i</span>
-      <div>
+      <div class="notice-body">
         <p class="notice-title">给予中国大陆用户的提醒</p>
         <p class="notice-text">根据中国大陆的法律法规限制，本站不为来自中国大陆的用户提供任何大模型服务，请来自中国大陆的用户自觉停止访问本站</p>
       </div>
+      <button class="theme-btn js-only" id="ph-theme" type="button" aria-pressed="false" aria-label="切换夜间与日间主题" title="切换夜间与日间主题">
+        <span class="knob" aria-hidden="true"></span>
+        <span class="t-label" id="ph-theme-label">夜间</span>
+      </button>
     </div>
   </aside>
 
   <!-- ===================== HERO ===================== -->
-  <section class="hero" id="top">
+  <section class="hero" id="ph-top">
     <div class="hero-band">
       <img src="new-api-assets/img/tavern-hero.jpg" alt="像素风格的酒馆吧台：木质台面上排列着啤酒龙头，背后是亮着琥珀色指示灯的机架服务器" width="1584" height="672" fetchpriority="high" decoding="async" />
       <div class="hero-scrim" aria-hidden="true"></div>
@@ -979,11 +933,11 @@
           <span class="led led-pulse" aria-hidden="true"></span>
           <span>gateway.log</span>
           <span class="grow"></span>
-          <span id="termStatus">7 个分组可用</span>
-          <button class="btn btn-ghost btn-sm" id="termPause" type="button" aria-pressed="false">暂停</button>
+          <span id="ph-term-status">7 个分组可用</span>
+          <button class="btn btn-ghost btn-sm js-only" id="ph-term-pause" type="button" aria-pressed="false">暂停</button>
         </div>
         <div class="term-body">
-          <div class="log" id="termBody" role="log" aria-live="off" aria-label="网关请求日志">
+          <div class="log" id="ph-term-body" role="log" aria-live="off" aria-label="网关请求日志">
             <span class="ln ok req"><span class="t">[12:04:11]</span><span class="m">gpt-5.6-sol</span><span class="g">Codex</span><span class="d">412ms</span><span class="s">ok</span></span>
             <span class="ln ok req"><span class="t">[12:04:11]</span><span class="m">claude-opus-4-8</span><span class="g">Claude</span><span class="d">596ms</span><span class="s">ok</span></span>
             <span class="ln ok req"><span class="t">[12:04:12]</span><span class="m">kimi-k3</span><span class="g">KIMI</span><span class="d">738ms</span><span class="s">ok</span></span>
@@ -1011,7 +965,7 @@
   </aside>
 
   <!-- ===================== COMPATIBILITY TICKER ===================== -->
-  <section class="compat" id="compat" aria-label="兼容的客户端与 SDK">
+  <section class="compat" id="ph-compat" aria-label="兼容的客户端与 SDK">
     <div class="wrap">
       <p class="compat-label">以下客户端可以直接导入配置，不用手抄地址和 Key</p>
     </div>
@@ -1050,7 +1004,7 @@
   </section>
 
   <!-- ===================== GROUP RATES ===================== -->
-  <section class="sec" id="lines">
+  <section class="sec" id="ph-lines">
     <div class="wrap live-grid">
       <div class="rv">
         <p class="kicker">计费分组</p>
@@ -1058,7 +1012,7 @@
         <p class="lede">站点按分组计费。同一个模型在不同分组下按该分组的倍率折算，21 个模型覆盖 7 个分组，当前全部可用。</p>
         <p class="note" style="margin-top:18px">数据取自站点价格页，最终扣费以控制台账单为准</p>
       </div>
-      <div class="panel board rv" style="--d:120ms" id="board">
+      <div class="panel board rv" style="--d:120ms" >
         <div class="board-head">
           <span>分组</span>
           <span>倍率</span>
@@ -1112,7 +1066,7 @@
   </section>
 
   <!-- ===================== BENTO FEATURES ===================== -->
-  <section class="sec sec-line" id="features">
+  <section class="sec sec-line" id="ph-features">
     <div class="wrap">
       <div class="sec-head rv">
         <h2 class="h2">网关该做的事，一件都不少</h2>
@@ -1174,7 +1128,7 @@ request --> route
   </section>
 
   <!-- ===================== MIGRATION ===================== -->
-  <section class="sec sec-line" id="migrate">
+  <section class="sec sec-line" id="ph-migrate">
     <div class="wrap migrate-grid">
       <div class="rv">
         <h2 class="h2">迁移只需替换<br />Base URL</h2>
@@ -1183,16 +1137,16 @@ request --> route
       </div>
 
       <div class="panel rv" style="--d:120ms">
-        <div class="panel-bar">
+        <div class="panel-bar js-only">
           <div class="tabs" style="border:0;flex:1 1 auto" role="tablist" aria-label="接入示例">
-            <button class="tab" id="tab-node" type="button" role="tab" aria-selected="true" aria-controls="pane-node">Node.js</button>
-            <button class="tab" id="tab-py" type="button" role="tab" aria-selected="false" aria-controls="pane-py">Python</button>
-            <button class="tab" id="tab-curl" type="button" role="tab" aria-selected="false" aria-controls="pane-curl">cURL</button>
+            <button class="tab" id="ph-tab-node" type="button" role="tab" aria-selected="true" aria-controls="ph-pane-node">Node.js</button>
+            <button class="tab" id="ph-tab-py" type="button" role="tab" aria-selected="false" aria-controls="ph-pane-py">Python</button>
+            <button class="tab" id="ph-tab-curl" type="button" role="tab" aria-selected="false" aria-controls="ph-pane-curl">cURL</button>
           </div>
         </div>
         <div class="code-body">
-          <div class="code-pane on" id="pane-node" role="tabpanel" aria-labelledby="tab-node">
-            <pre class="code" id="code-node"><span class="rowline cm">// 之前</span>
+          <div class="code-pane on" id="ph-pane-node" role="tabpanel" aria-labelledby="ph-tab-node">
+            <pre class="code" id="ph-code-node"><span class="rowline cm">// 之前</span>
 <span class="rowline old">const client = new OpenAI({</span>
 <span class="rowline old">  baseURL: 'https://api.openai.com/v1',</span>
 <span class="rowline old">  apiKey: process.env.OPENAI_API_KEY</span>
@@ -1209,8 +1163,8 @@ request --> route
 <span class="rowline">  messages</span>
 <span class="rowline">})</span></pre>
           </div>
-          <div class="code-pane" id="pane-py" role="tabpanel" aria-labelledby="tab-py">
-            <pre class="code" id="code-py"><span class="rowline cm"># 之前</span>
+          <div class="code-pane" id="ph-pane-py" role="tabpanel" aria-labelledby="ph-tab-py">
+            <pre class="code" id="ph-code-py"><span class="rowline cm"># 之前</span>
 <span class="rowline old">client = OpenAI(</span>
 <span class="rowline old">    base_url="https://api.openai.com/v1",</span>
 <span class="rowline old">    api_key=os.environ["OPENAI_API_KEY"],</span>
@@ -1227,8 +1181,8 @@ request --> route
 <span class="rowline">    messages=messages,</span>
 <span class="rowline">)</span></pre>
           </div>
-          <div class="code-pane" id="pane-curl" role="tabpanel" aria-labelledby="tab-curl">
-            <pre class="code" id="code-curl"><span class="rowline cm"># 之前</span>
+          <div class="code-pane" id="ph-pane-curl" role="tabpanel" aria-labelledby="ph-tab-curl">
+            <pre class="code" id="ph-code-curl"><span class="rowline cm"># 之前</span>
 <span class="rowline old">curl https://api.openai.com/v1/chat/completions \</span>
 <span class="rowline old">  -H "Authorization: Bearer $OPENAI_API_KEY" \</span>
 
@@ -1240,9 +1194,9 @@ request --> route
 <span class="rowline">  -d '{"model":"kimi-k3","messages":[...]}'</span></pre>
           </div>
 
-          <div class="copy-row">
-            <button class="btn btn-ghost btn-sm" id="copyBtn" type="button">复制当前示例</button>
-            <span class="copied" id="copyMsg" role="status">已复制到剪贴板</span>
+          <div class="copy-row js-only">
+            <button class="btn btn-ghost btn-sm" id="ph-copy" type="button">复制当前示例</button>
+            <span class="copied" id="ph-copy-msg" role="status">已复制到剪贴板</span>
           </div>
         </div>
       </div>
@@ -1250,7 +1204,7 @@ request --> route
   </section>
 
   <!-- ===================== MODEL CATALOG ===================== -->
-  <section class="sec sec-line" id="models">
+  <section class="sec sec-line" id="ph-models">
     <div class="wrap">
       <div class="sec-head rv">
         <p class="kicker">模型目录</p>
@@ -1258,10 +1212,10 @@ request --> route
         <p class="lede">目录随上游更新。新增模型不需要重新申请账号，也不用更换 Key。</p>
       </div>
 
-      <div class="cat-tools rv">
+      <div class="cat-tools js-only rv">
         <label class="search">
           <span class="mono" aria-hidden="true">查找</span>
-          <input id="modelSearch" type="search" placeholder="输入模型名，例如 claude 或 flash" aria-label="搜索模型" autocomplete="off" />
+          <input id="ph-search" type="search" placeholder="输入模型名，例如 claude 或 flash" aria-label="搜索模型" autocomplete="off" />
         </label>
         <div class="chip-group">
           <span class="chip-label mono">供应商</span>
@@ -1302,7 +1256,7 @@ request --> route
               <th scope="col" class="col-group">分组</th>
             </tr>
           </thead>
-          <tbody id="modelRows">
+          <tbody id="ph-model-rows">
             <tr data-name="gpt-5.6-sol" data-vendor="OpenAI" data-groups="default Codex" title="前沿 GPT-5.6 模型，面向复杂专业工作、编程与智能体工作流"><td class="m"><span>gpt-5.6-sol</span></td><td>OpenAI</td><td class="num col-ctx">1.1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Codex</td></tr>
             <tr data-name="claude-opus-4-8" data-vendor="Anthropic" data-groups="default Claude" title="顶级 Claude Opus 档位，面向最高难度的推理、编程与长程智能体"><td class="m"><span>claude-opus-4-8</span></td><td>Anthropic</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Claude</td></tr>
             <tr data-name="gpt-6-astra" data-vendor="OpenAI" data-groups="default Codex" title="GPT-6 Astra 是 OpenAI 能力最强的模型，面向复杂推理、编程、计算机操作、研究与文档创作。"><td class="m"><span>gpt-6-astra</span></td><td>OpenAI</td><td class="num col-ctx">1.1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Codex</td></tr>
@@ -1314,15 +1268,15 @@ request --> route
           </tbody>
         </table>
       </div>
-      <div class="empty" id="modelEmpty">
+      <div class="empty" id="ph-model-empty">
         <span class="mono">没有匹配的模型</span>
         换一个关键词，或者把筛选切回全部。
       </div>
 
       <div class="cat-foot">
-        <p class="note" id="modelCount">显示 8 个模型</p>
+        <p class="note" id="ph-model-count">以下为部分模型，完整目录共 21 个</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="moreBtn" type="button" aria-expanded="false">展开全部</button>
+          <button class="btn btn-ghost btn-sm js-only" id="ph-more" type="button" aria-expanded="false">展开全部</button>
           <a class="btn btn-ghost btn-sm" href="https://paoluapi.xyz/pricing">查看价格</a>
         </div>
       </div>
@@ -1331,7 +1285,7 @@ request --> route
   </section>
 
   <!-- ===================== QUICK START ===================== -->
-  <section class="sec sec-line" id="start">
+  <section class="sec sec-line" id="ph-start">
     <div class="wrap steps-grid">
       <div class="rv">
         <h2 class="h2">三步接入</h2>
@@ -1367,7 +1321,7 @@ request --> route
   </section>
 
   <!-- ===================== ACCESS INFO ===================== -->
-  <section class="sec sec-line" id="pricing">
+  <section class="sec sec-line" id="ph-pricing">
     <div class="wrap migrate-grid">
       <div class="rv">
         <h2 class="h2">计费与接入信息</h2>
@@ -1399,7 +1353,7 @@ request --> route
   </section>
 
   <!-- ===================== CLOSING CTA ===================== -->
-  <section class="endcta" id="join">
+  <section class="endcta" id="ph-join">
     <img src="new-api-assets/img/tavern-night.jpg" alt="像素风格的夜晚酒馆外观：暖色窗光、猫爪形状的招牌、湿漉漉的石板路" width="1376" height="768" loading="lazy" decoding="async" />
     <div class="scrim" aria-hidden="true"></div>
     <div class="endcta-in">
@@ -1415,7 +1369,7 @@ request --> route
   </section>
 </main>
 
-<footer class="foot" id="sitefoot">
+<footer class="foot" id="ph-foot">
   <div class="wrap">
     <div class="foot-grid">
       <div>
@@ -1436,9 +1390,9 @@ request --> route
       <div>
         <h4>本页</h4>
         <ul>
-          <li><a href="#models">模型目录</a></li>
-          <li><a href="#compat">兼容客户端</a></li>
-          <li><a href="#start">三步接入</a></li>
+          <li><a href="#ph-models">模型目录</a></li>
+          <li><a href="#ph-compat">兼容客户端</a></li>
+          <li><a href="#ph-start">三步接入</a></li>
         </ul>
       </div>
       <div>
@@ -1464,15 +1418,14 @@ request --> route
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- Theme toggle ---------- */
-  var root = document.documentElement;
-  var themeBtn = $('themeBtn');
-  var themeLabel = $('themeLabel');
+  var root = $('ph-home');
+  var themeBtn = $('ph-theme');
+  var themeLabel = $('ph-theme-label');
   function paintTheme() {
+    /* Never touches document.documentElement: the host app owns that. */
     var light = root.getAttribute('data-theme') === 'light';
     themeLabel.textContent = light ? '日间' : '夜间';
     themeBtn.setAttribute('aria-pressed', light ? 'true' : 'false');
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) { meta.setAttribute('content', light ? '#ecebe4' : '#12100e'); }
   }
   paintTheme();
   themeBtn.addEventListener('click', function () {
@@ -1480,31 +1433,6 @@ request --> route
     root.setAttribute('data-theme', next);
     try { localStorage.setItem('paolu-theme', next); } catch (e) {}
     paintTheme();
-  });
-
-  /* ---------- Mobile drawer ---------- */
-  var topbar = $('topbar');
-  var menuBtn = $('menuBtn');
-  menuBtn.addEventListener('click', function () {
-    var open = topbar.getAttribute('data-open') === 'true';
-    topbar.setAttribute('data-open', open ? 'false' : 'true');
-    menuBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
-    menuBtn.textContent = open ? '菜单' : '收起';
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('#navDrawer a'), function (a) {
-    a.addEventListener('click', function () {
-      topbar.setAttribute('data-open', 'false');
-      menuBtn.setAttribute('aria-expanded', 'false');
-      menuBtn.textContent = '菜单';
-    });
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && topbar.getAttribute('data-open') === 'true') {
-      topbar.setAttribute('data-open', 'false');
-      menuBtn.setAttribute('aria-expanded', 'false');
-      menuBtn.textContent = '菜单';
-      menuBtn.focus();
-    }
   });
 
   /* ---------- Scroll reveal (IntersectionObserver, no scroll listener) ---------- */
@@ -1524,9 +1452,9 @@ request --> route
   }
 
   /* ---------- Live gateway log ---------- */
-  var termBody = $('termBody');
-  var pauseBtn = $('termPause');
-  var statusEl = $('termStatus');
+  var termBody = $('ph-term-body');
+  var pauseBtn = $('ph-term-pause');
+  var statusEl = $('ph-term-status');
   var feed = [
     { k: 'ok', n: 'gpt-5.6-sol', g: 'Codex', ms: '398ms' },
     { k: 'ok', n: 'claude-fable-5', g: 'Claude', ms: '512ms' },
@@ -1596,9 +1524,9 @@ request --> route
 
   /* ---------- Code tabs + copy ---------- */
   var tabs = [
-    { tab: $('tab-node'), pane: $('pane-node') },
-    { tab: $('tab-py'), pane: $('pane-py') },
-    { tab: $('tab-curl'), pane: $('pane-curl') }
+    { tab: $('ph-tab-node'), pane: $('ph-pane-node') },
+    { tab: $('ph-tab-py'), pane: $('ph-pane-py') },
+    { tab: $('ph-tab-curl'), pane: $('ph-pane-curl') }
   ];
   tabs.forEach(function (pair) {
     pair.tab.addEventListener('click', function () {
@@ -1610,8 +1538,8 @@ request --> route
     });
   });
 
-  var copyBtn = $('copyBtn');
-  var copyMsg = $('copyMsg');
+  var copyBtn = $('ph-copy');
+  var copyMsg = $('ph-copy-msg');
   function currentSnippet() {
     var active = document.querySelector('.code-pane.on .code');
     return active ? active.innerText : '';
@@ -1646,7 +1574,7 @@ request --> route
   }
 
   /* ---------- Model catalog: search, vendor + group filter, expand ---------- */
-  var tbody = $('modelRows');
+  var tbody = $('ph-model-rows');
   var moreModels = [
     { n: 'claude-fable-5', v: 'Anthropic', c: '1M', t: '推理 工具 多模态', g: 'Claude', gs: 'default Claude', d: '面向创意写作、分析与可控智能体工作流的 Claude 模型' },
     { n: 'claude-sonnet-5-5', v: 'Anthropic', c: '1M', t: '推理 工具 多模态', g: 'Claude', gs: 'default Claude', d: '面向日常编程、智能体与知识工作的快速 Claude 档位' },
@@ -1663,12 +1591,12 @@ request --> route
     { n: 'deepseek-v4.1-flash-expires-on-0910', v: 'DeepSeek', c: '未标注', t: '推理 工具', g: 'Deepseek', gs: 'default Deepseek', d: '限时档位，到期后由常规档位承接' }
   ];
   var builtExtras = false;
-  var search = $('modelSearch');
+  var search = $('ph-search');
   var vendorChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-vendor]'));
   var groupChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-group]'));
-  var moreBtn = $('moreBtn');
-  var emptyEl = $('modelEmpty');
-  var countEl = $('modelCount');
+  var moreBtn = $('ph-more');
+  var emptyEl = $('ph-model-empty');
+  var countEl = $('ph-model-count');
   var vendor = 'all';
   var group = 'all';
   var expanded = false;
@@ -1746,5 +1674,6 @@ request --> route
   applyCatalog();
 })();
 </script>
+</div>
 </body>
 </html>
