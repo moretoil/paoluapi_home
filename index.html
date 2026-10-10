@@ -801,6 +801,23 @@
     font-size: 12px;
     color: var(--ink-3);
   }
+  /* Bottom line legal links: small text, sitting on the copyright row. */
+  #ph-home .foot-links{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-left: auto;
+  }
+  #ph-home .foot-links a{
+    color: var(--ink-2);
+    border-bottom: 1px solid transparent;
+    transition: color 0.16s linear, border-color 0.16s linear;
+  }
+  #ph-home .foot-links a:hover,
+  #ph-home .foot-links a:focus-visible{
+    color: var(--accent-text);
+    border-bottom-color: var(--accent-line);
+  }
 
   /* --- Reveal + motion policy ------------------------------------------- */
   #ph-home.js .rv{ opacity: 0; transform: translateY(16px); transition: opacity 0.62s var(--ease), transform 0.62s var(--ease); transition-delay: var(--d, 0ms); }
@@ -1406,6 +1423,10 @@ request --> route
     <div class="foot-legal">
       <span>© 2026 PaoluAPI. 为热爱与创造而生。</span>
       <span>基于 New API 构建</span>
+      <span class="foot-links">
+        <a href="https://paoluapi.xyz/user-agreement">用户协议</a>
+        <a href="https://paoluapi.xyz/privacy-policy">隐私政策</a>
+      </span>
     </div>
   </div>
 </footer>
