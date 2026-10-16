@@ -2,7 +2,11 @@
 <html lang="zh-CN" data-theme="light" data-char="gpt">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- viewport-fit=cover 是 env(safe-area-inset-*) 能取到值的前提（iOS 刘海/Home 条） -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 移动端浏览器 UI 配色：跟着页面主题走，避免深色页面配白地址栏 -->
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf9f6">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171912">
 <title>Paolu API · 统一 API 网关</title>
 <meta name="description" content="Paolu API：统一 API 网关，服务于海量 AI 模型。通过统一、标准的接口协议接入海量模型，兼容 OpenAI / Claude / Gemini 等路由，按量计费。">
 <meta name="color-scheme" content="light dark">
@@ -95,9 +99,14 @@
     margin:0;font-family:var(--ui);color:var(--ink);background:#b9c7ad;
     overflow:hidden;overscroll-behavior:none;
     -webkit-font-smoothing:antialiased;
+    /* 移动端基座：去掉点按高亮，也别让横屏/系统字号把文字放大到撑破版式 */
+    -webkit-tap-highlight-color:transparent;
+    -webkit-text-size-adjust:100%;text-size-adjust:100%;
   }
   a{color:inherit;text-decoration:none}
   button{font:inherit;color:inherit}
+  /* 触控设备：可点元素不做双击缩放的等待，点按即响应 */
+  a,button,label{touch-action:manipulation}
   :focus-visible{outline:3px solid var(--accent-text);outline-offset:3px}
   h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
   ul,ol{padding:0;list-style:none}
@@ -658,30 +667,73 @@
     .btn,.btn-arrow,.chip-card,.chip-card::after,.rail-btn,.ghost-btn,.topnav a,.char-btn{transition:none}
   }
   @media (prefers-reduced-transparency:reduce){
-    .stage,.card,.panel,.term,.chip-card,.btn,.rail-btn,.ghost-btn{
+    .stage,.card,.panel,.term,.chip-card,.btn,.rail-btn,.ghost-btn,.notice__card{
       backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--glass-solid);
     }
+    /* 遮罩层本身不该变不透明（会糊住整页），只把模糊关掉 */
+    .notice{backdrop-filter:none;-webkit-backdrop-filter:none}
   }
 
-  /* ============ 窄屏：导航栏落到下方，视窗内部滚动 ============ */
+  /* ============ 窄屏（≤900px）：一套为拇指重写的 App 外壳 ============
+     跟桌面共用同一份 DOM/JS：底部导航仍然是 <nav class="rail"> 里那 4 个 #hash
+     链接，只是从左侧浮层换到贴底 tab bar。位置用 grid-template-areas 换，不动
+     DOM 顺序 —— 所以 :target 切屏、aria-current 高亮、无 JS 可用全部照旧。
+     下面所有规则都关在移动断点里：桌面（>900px）一个字都不动。 */
   @media (max-width:900px){
     .stage{
       grid-template-rows:auto minmax(0,1fr) auto auto;
-      grid-template-areas:"top" "view" "rail" "bar";
+      /* 视觉顺序：顶栏 → 内容 → 状态条 → 贴底导航 */
+      grid-template-areas:"top" "view" "bar" "tabs";
       border-radius:clamp(22px,6vw,34px);
+      /* 兜底一行 + 安全区一行（平板也有 Home 指示条） */
       padding:clamp(10px,3vw,18px) clamp(12px,3.4vw,20px) clamp(6px,2vw,10px);
+      padding:max(env(safe-area-inset-top),clamp(10px,3vw,18px))
+              max(env(safe-area-inset-right),clamp(12px,3.4vw,20px))
+              max(env(safe-area-inset-bottom),clamp(6px,2vw,10px))
+              max(env(safe-area-inset-left),clamp(12px,3.4vw,20px));
     }
     .topbar{min-height:56px}
     .view{padding:6px 0}
+
+    /* ---- 贴底 tab bar：4 等分、竖排（编号在上、名称在下）、拇指高度 ≥52px ---- */
     .rail{
-      position:static;transform:none;flex-direction:row;gap:8px;
-      padding:10px 0 4px;overflow-x:auto;
+      grid-area:tabs;
+      /* 基类给的是 position:absolute + left/top，静态化后必须把偏移量清掉 */
+      position:relative;left:auto;top:auto;transform:none;z-index:7;
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;
+      padding:5px 0 2px;overflow:visible;
+      border-top:1px solid var(--hair);
     }
-    .rail-btn{padding:8px 12px;font-size:12.5px}
+    .rail-btn{
+      position:relative;
+      flex-direction:column;gap:3px;justify-content:center;
+      min-width:0;min-height:52px;padding:6px 4px;
+      border-radius:var(--r-chip);border-color:transparent;background:transparent;
+      box-shadow:none;font-size:12.5px;line-height:1.15;white-space:nowrap;
+    }
+    .rail-btn .num{font-size:10.5px;letter-spacing:.04em}
+    /* 选中态沿用桌面已验证过的 --accent / --accent-ink 组合，不新造颜色 */
+    .rail-btn[aria-current="true"]{
+      background:var(--accent);border-color:transparent;color:var(--accent-ink);box-shadow:none;
+    }
+    .rail-btn[aria-current="true"] .num{color:var(--accent-ink);opacity:.72}
+    .rail-btn::before{
+      content:"";position:absolute;top:2px;left:50%;width:22px;height:2px;
+      border-radius:var(--r-pill);background:var(--accent);
+      opacity:0;transform:translateX(-50%);
+    }
+    .rail-btn[aria-current="true"]::before{opacity:1}
+
     .hero{width:100%;max-width:none}
     .home-top{grid-template-columns:minmax(0,1fr);gap:16px}
     .view--home{display:flex;flex-direction:column;gap:16px}
     .view--home>*{flex:none}
+    /* 概览页在基类是 position:relative（桌面靠它当看板娘 / 场景层的定位基准），
+       窄屏单列后它会按内容高度撑开：实测 500×748 视口内容 1006px，而视窗行只有
+       511px —— 溢出的卡片穿过状态条与 tab bar（越界 400+px，.stage 的 overflow
+       切不掉，只会在半透明的底栏下面透出来）。这一档四个 view 一视同仁：
+       绝对定位 + 容器内滚动，滚动手感与接口/能力/上手三页完全一致。 */
+    .view--home{position:absolute;inset:0}
     .home-top{display:flex;flex-direction:column}
     /* 窄屏场景图退出全幅铺底，回到常规文档流当一块 16:9 banner。
        整幅铺底在单列布局里会被压成一条，且横向要裁掉一大半角色。
@@ -689,7 +741,12 @@
        丢掉定位基准，改去相对 .view--home 定位，渐变会横跨整屏。 */
     .scene{
       position:relative;inset:auto;order:-1;
-      height:min(38vh,260px);border-radius:var(--r-card);pointer-events:auto;
+      height:min(38vh,260px);              /* 没有 aspect-ratio 的老内核（iOS<15）兜底 */
+      border-radius:var(--r-card);pointer-events:auto;
+    }
+    @supports (aspect-ratio:1376/768){
+      /* 真 16:9 横幅：高度跟着宽度走，比 38vh 更不容易在矮屏上把正文挤出去 */
+      .scene{height:auto;aspect-ratio:1376/768;max-height:34vh}
     }
     /* 窄屏 banner 本来就是清晰的，不需要「模糊氛围底 + 免扣前景层」这套；
        免扣层直接隐藏（JS 也会因此不下载它，省 260–590KB），场景图恢复原样。 */
@@ -713,6 +770,11 @@
     }
     .view--start{grid-template-rows:max-content max-content max-content}
     .steps{grid-template-columns:minmax(0,1fr);gap:16px;align-content:start}
+    /* 步骤卡：窄屏把序号和标题提到同一行，别让序号白占一整行 */
+    .step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;align-items:center}
+    .step>*{grid-column:1/-1}
+    .step .step-n{grid-column:1;grid-row:1}
+    .step h3{grid-column:2;grid-row:1}
     /* 窄屏改由整屏滚动，卡片不再各自内部裁剪，弹性子项也不再被压成 0 高 */
     .bento .card,.card--endpoints,.term-body{overflow:visible}
     .model-grid,.regions,.keys{flex:none}
@@ -720,23 +782,105 @@
     .regions,.keys{align-content:start}
     .four{grid-template-columns:repeat(2,minmax(0,1fr))}
     .step:not(:last-child)::after{display:none}
+    /* 端点表：窄屏改成「键在上、值在下」，右对齐的值在窄列里会被挤成碎字 */
+    .kv{flex-direction:column;align-items:flex-start;gap:3px;padding:9px 0}
+    .kv dd{text-align:left}
+    .term-body{font-size:12px}
+    /* 上手页底部：数字片 + 主按钮竖排，别在一行里互相挤 */
+    .start-foot{flex-direction:column;align-items:stretch}
+    .chips--inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .statusbar{flex-wrap:wrap;gap:6px 10px}
     .routes{display:flex}
     .sb-mid{display:none}
+    /* 弹层也要让开刘海/Home 条，别把「我已知悉」压到屏幕外 */
+    .notice{
+      padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right))
+              max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+    }
+    .notice__card{max-height:min(82vh,660px);max-height:min(82dvh,660px)}
   }
+  /* 手机（≤640px）：贴边全屏 App 画布 + 真视口高度 + 两行紧凑状态条 */
   @media (max-width:640px){
-    .topnav{display:none}
-    .ver{display:none}
-    .topbar{flex-wrap:wrap;row-gap:6px}
-    .char-picker{order:9;flex-basis:100%;justify-content:center;overflow-x:auto;padding-bottom:2px}
-    .char-btn{width:24px;height:32px}
-    .view-head h2{font-size:clamp(1.4rem,6vw,1.9rem)}
+    /* 从「留白玻璃卡」变成贴边应用画布：四边安全区，中间是真实视口高度（dvh）。
+       height:100vh 在前、100dvh 在后 —— 不支持 dvh 的内核退回 100vh（地址栏
+       收起时底部会被切掉一点，可接受），支持的就是「地址栏怎么变都刚好」。 */
+    .stage{
+      inset:0;border-radius:0;
+      height:100vh;height:100dvh;
+      padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+              max(4px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+    }
+    .stage::before{display:none}   /* 全屏画布不需要那条内缩的玻璃描边 */
+    .squiggle{display:none}        /* 装饰曲线会跟 App Bar 抢位，这一档收掉 */
+
+    .topnav{display:none}          /* 站点链接改由状态条第一行承接，不能一起丢 */
+    .ver{display:none}             /* 版本号状态条里已经有了，不重复占位 */
+    .topbar{flex-wrap:wrap;row-gap:6px;min-height:52px}
+    /* 角色条独占第二行，横向吸附滚动，隐藏滚动条 */
+    .char-picker{
+      order:9;flex-basis:100%;justify-content:flex-start;
+      overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity;
+      scrollbar-width:none;
+    }
+    .char-picker::-webkit-scrollbar{display:none;width:0;height:0}
+    .char-btn{width:34px;height:44px;scroll-snap-align:center}
+
+    /* 触控目标抬到 ≥40–44px（WCAG 2.5.8 的下限是 24px，这里按手指给足） */
+    .ghost-btn{min-height:40px;padding:10px 14px}
+    .avatar{width:40px;height:40px}
+    .rail-btn{min-height:54px;font-size:12px}
+
+    .hero-title{font-size:clamp(1.75rem,7.2vw,2.4rem)}
+    .hero-sub{font-size:14.5px}
+    .view-head h2{font-size:clamp(1.45rem,6.4vw,2rem)}
     .four{grid-template-columns:minmax(0,1fr)}
+    .chip-card{padding:12px 32px 11px 14px}
+    .chip-card small{white-space:normal}
+    .chips--inline{grid-template-columns:minmax(0,1fr)}
+
+    /* 状态条压成两行：第一行留住站点链接（这一档顶栏导航已隐藏），
+       第二行才是版本 / 地区提醒 / 协议，居中排。 */
+    .statusbar{flex-direction:column;align-items:center;gap:3px;font-size:11px;text-align:center}
+    .sb-left{order:2}
+    .sb-right{justify-content:center;gap:3px 8px}
+    .routes{
+      order:-1;flex-basis:100%;justify-content:center;
+      flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none;
+    }
+    .routes::-webkit-scrollbar{display:none;width:0;height:0}
     .sb-copy{display:none}
-    .statusbar{font-size:11px}
   }
   @media (max-width:420px){
-    .rail-btn .num{display:none}
+    /* 这一档不再藏掉编号：编号是新 tab bar 的视觉锚点，只降字号 */
+    .rail-btn{font-size:11.5px}
+    .statusbar{font-size:10.5px}
+  }
+
+  /* ============ 触屏：没有 hover 的设备不给「移上去」的位移，改成按压缩放 ============ */
+  @media (hover:none){
+    .btn:hover,.chip-card:hover,.rail-btn:hover,.ghost-btn:hover,.char-btn:hover,.topnav a:hover{transform:none}
+    .btn:hover .btn-arrow,.chip-card:hover::after{transform:none}
+    .btn:active,.chip-card:active,.rail-btn:active,.ghost-btn:active,.avatar:active{transform:scale(.97)}
+  }
+  /* ============ 触屏：滚动手势区收掉细滚动条（桌面不动，细条照留） ============ */
+  @media (pointer:coarse){
+    .rail,.char-picker,.routes,.code,.term-body{scrollbar-width:none}
+    .rail::-webkit-scrollbar,.char-picker::-webkit-scrollbar,.routes::-webkit-scrollbar,
+    .code::-webkit-scrollbar,.term-body::-webkit-scrollbar{display:none;width:0;height:0}
+  }
+
+  /* ============ 横屏矮屏（触屏）：把首屏高度还给正文 ============
+     只在触屏设备生效，免得把矮窗口的桌面浏览器也一起改掉。 */
+  @media (orientation:landscape) and (max-height:560px) and (hover:none){
+    .stage{padding-top:max(6px,env(safe-area-inset-top))}
+    .topbar{min-height:44px}
+    .scene{height:min(30vh,180px);aspect-ratio:auto;max-height:none}
+    .hero-title{font-size:clamp(1.35rem,5.5vh,1.7rem)}
+    .hero-sub{font-size:13.5px;line-height:1.7}
+    .hero-cta{margin-top:8px;gap:10px}
+    .panel{padding:12px 16px}
+    .panel-word{font-size:1.3rem;margin-bottom:8px}
+    .rail-btn{min-height:48px}
   }
 </style>
 </head>
