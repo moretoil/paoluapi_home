@@ -1,1700 +1,1242 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light" data-char="gpt">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Paolu API - 一个 API，接入全球主流模型</title>
-<meta name="description" content="21 个模型、7 个计费分组，按量扣减，兼容 OpenAI 接口规范。迁移只替换 Base URL，业务代码无需改动。" />
-</head>
-<body>
-<!-- ==========================================================================
-     New API 首页嵌入范围：从下面这行 <div id="ph-home"> 到它对应的 </div>。
-     整块自带样式与脚本，全部选择器都限定在 #ph-home 之内，不会影响框架 UI。
-     脚本若因注入方式不执行，页面会回退为静态完整版，并按系统深浅色显示。
-     ========================================================================== -->
-<div id="ph-home">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paolu API · 统一 API 网关</title>
+<meta name="description" content="Paolu API：统一 API 网关，服务于海量 AI 模型。通过统一、标准的接口协议接入海量模型，兼容 OpenAI / Claude / Gemini 等路由，按量计费。">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+/* 主题与角色初始化：必须在首帧前完成，避免闪烁。
+   顺序：?theme= / ?char= 测试参数 → 本地偏好 → 浅色默认 / GPT 默认。 */
+(function () {
+  var d = document.documentElement;
+  d.classList.add('js');
+  var t = null, m = /[?&]theme=(dark|light)/.exec(location.search);
+  if (m) { t = m[1]; }
+  if (!t) { try { t = localStorage.getItem('paolu.theme'); } catch (e) { t = null; } }
+  if (t !== 'dark' && t !== 'light') { t = 'light'; }
+  d.setAttribute('data-theme', t);
+
+  var SLUGS = ['gpt', 'claude', 'deepseek', 'gemini', 'glm', 'grok'];
+  var c = null, mc = /[?&]char=([a-z]+)/.exec(location.search);
+  if (mc) { c = mc[1]; }
+  if (!c) { try { c = localStorage.getItem('paolu.char'); } catch (e) { c = null; } }
+  if (SLUGS.indexOf(c) === -1) { c = 'gpt'; }
+  d.setAttribute('data-char', c);
+})();
+</script>
 <style>
-  /* ==========================================================================
-     Paolu API 模型网关 - 像素酒馆 / 复古终端设计系统
-     Dial settings: DESIGN_VARIANCE 8 | MOTION_INTENSITY 6 | VISUAL_DENSITY 5
-     Shape lock: every corner is square (radius 0). Panel treatment is one
-     single recipe: 1px hairline border + hard 4px offset shadow (no blur).
-     Color lock: exactly one accent (amber). Status rows reuse the same amber.
-     ========================================================================== */
-
-  @font-face{
-    font-family: "Departure Mono Local";
-    src: url("new-api-assets/fonts/departure-mono.2210cbd801.woff2") format("woff2");
-    font-style: normal; font-weight: 400; font-display: swap;
+  /* ============ 设计令牌 ============ */
+  :root{
+    /* 强调色由「角色」决定，见下方 [data-char] 分组；这里只放中性面 */
+    --ink:#17150F;
+    --ink-2:#4b453a;
+    --ink-3:#6d6552;
+    --glass-1:rgba(255,255,255,.80);
+    --glass-2:rgba(255,253,246,.46);
+    --glass-line:rgba(255,255,255,.72);
+    --glass-inner:rgba(255,255,255,.72);
+    --glass-solid:#f4f2e9;
+    --card-bg:linear-gradient(150deg,rgba(255,255,255,.84),rgba(255,255,253,.52));
+    --card-line:rgba(255,255,255,.72);
+    --btn-bg:rgba(255,255,255,.88);
+    --btn-fg:#17150F;
+    --btn-line:rgba(255,255,255,.7);
+    --hair:rgba(90,74,30,.16);
+    --shadow:0 34px 80px rgba(74,58,18,.24);
+    --shadow-card:0 18px 44px rgba(80,62,20,.15);
+    --r-stage:56px; --r-big:40px; --r-card:30px; --r-chip:34px; --r-sm:16px; --r-pill:999px;
+    --serif:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,Georgia,serif;
+    --ui:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,Menlo,"Liberation Mono",monospace;
   }
-  @font-face{
-    font-family: "New Index Display";
-    src: url("new-api-assets/fonts/display-variable.e4af272cce.woff2") format("woff2");
-    font-style: normal; font-weight: 100 900; font-display: swap;
-  }
-  @font-face{
-    font-family: "Neoris Local";
-    src: url("new-api-assets/fonts/neoris-variable.7fda2b476f.woff2") format("woff2");
-    font-style: normal; font-weight: 100 900; font-display: swap;
-  }
-
-  #ph-home{
-    /* Dark: the pub at night. */
-    --bg: #12100e;
-    --bg-2: #0d0b0a;
-    --surface: #191512;
-    --surface-2: #221c17;
-    --line: #312a22;
-    --line-2: #4a3f33;
-    --ink: #f2e9db;
-    --ink-2: #c6b8a6;
-    --ink-3: #918575;
-    --accent: #e8a33d;
-    --accent-text: #e8a33d;
-    --accent-ink: #1a1206;
-    --accent-soft: rgba(232, 163, 61, 0.1);
-    --accent-line: rgba(232, 163, 61, 0.34);
-    --ok: #e8a33d;
-    --shadow-hard: 4px 4px 0 rgba(0, 0, 0, 0.5);
-    --shadow-soft: 0 18px 40px -28px rgba(0, 0, 0, 0.9);
-    --scrim: linear-gradient(96deg, rgba(13, 11, 10, 0) 0%, rgba(13, 11, 10, 0.5) 30%, rgba(13, 11, 10, 0.93) 52%, #12100e 72%);
-    --scanline: rgba(255, 255, 255, 0.035);
-    --grid-tint: rgba(232, 163, 61, 0.05);
-
-    --font-mono: "Departure Mono Local", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-    --font-ui: "Neoris Local", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-    --font-display: "New Index Display", "Neoris Local", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-
-    --wrap: 1240px;
-    --pad-x: clamp(18px, 4vw, 44px);
-    --sec-y: clamp(64px, 8.5vw, 120px);
-    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  [data-theme="dark"]{
+    --ink:#f2f0e8;
+    --ink-2:#c8c4b4;
+    --ink-3:#a09b8a;
+    --glass-1:rgba(26,28,22,.80);
+    --glass-2:rgba(22,24,18,.50);
+    --glass-line:rgba(255,255,255,.16);
+    --glass-inner:rgba(255,255,255,.10);
+    --glass-solid:#171912;
+    --card-bg:linear-gradient(150deg,rgba(30,32,25,.82),rgba(24,26,20,.54));
+    --card-line:rgba(255,255,255,.14);
+    --btn-bg:rgba(34,36,28,.78);
+    --btn-fg:#f2f0e8;
+    --btn-line:rgba(255,255,255,.16);
+    --hair:rgba(255,255,255,.12);
+    --shadow:0 34px 80px rgba(0,0,0,.52);
+    --shadow-card:0 18px 44px rgba(0,0,0,.38);
   }
 
-  #ph-home[data-theme="light"]{
-    /* Light: the same pub on a paper-white afternoon. */
-    --bg: #ecebe4;
-    --bg-2: #e3e1d9;
-    --surface: #f6f5f0;
-    --surface-2: #e7e5dd;
-    --line: #cdc8bc;
-    --line-2: #a49c8d;
-    --ink: #1d1a16;
-    --ink-2: #4b443b;
-    --ink-3: #6d6559;
-    --accent: #e8a33d;
-    --accent-text: #8a5305;
-    --accent-ink: #1a1206;
-    --accent-soft: rgba(196, 130, 24, 0.12);
-    --accent-line: rgba(180, 118, 20, 0.4);
-    --shadow-hard: 4px 4px 0 rgba(60, 50, 34, 0.16);
-    --shadow-soft: 0 18px 40px -30px rgba(60, 48, 30, 0.5);
-    --scrim: linear-gradient(96deg, rgba(236, 235, 228, 0.06) 0%, rgba(236, 235, 228, 0.62) 30%, rgba(236, 235, 228, 0.95) 52%, #ecebe4 72%);
-    --scanline: rgba(0, 0, 0, 0);
-    --grid-tint: rgba(120, 96, 40, 0.06);
+  /* ============ 角色主题：6 位 AI 娘各自的强调色 ============
+     每套 4 个值：--accent 填充 / --accent-ink 压在填充上的字 /
+     --accent-text 当文字用的强调色 / --accent-tint 淡底与光晕。
+     全部经对比度脚本核算：--accent-text 对玻璃底 ≥4.5:1、--accent-ink 对 --accent ≥4.5:1。 */
+  [data-char="gpt"]{      --accent:#b39db3; --accent-ink:#2f222f; --accent-text:#7f627d; --accent-tint:rgba(179,157,179,.26); --accent-hue:40deg}
+  [data-char="claude"]{   --accent:#db9376; --accent-ink:#3f1f12; --accent-text:#a55534; --accent-tint:rgba(219,147,118,.26); --accent-hue:-10deg}
+  [data-char="deepseek"]{ --accent:#888cc9; --accent-ink:#12153f; --accent-text:#373eae; --accent-tint:rgba(136,140,201,.26); --accent-hue:30deg}
+  [data-char="gemini"]{   --accent:#9877d9; --accent-ink:#21123f; --accent-text:#5f37ae; --accent-tint:rgba(152,119,217,.26); --accent-hue:35deg}
+  [data-char="glm"]{      --accent:#ba97aa; --accent-ink:#31212a; --accent-text:#8a5c75; --accent-tint:rgba(186,151,170,.26); --accent-hue:22deg}
+  [data-char="grok"]{     --accent:#cbb686; --accent-ink:#3f3212; --accent-text:#826729; --accent-tint:rgba(203,182,134,.26); --accent-hue:-15deg}
+  [data-theme="dark"][data-char="gpt"]{      --accent:#baabba; --accent-ink:#291e29; --accent-text:#9b7e9a; --accent-tint:rgba(186,171,186,.18)}
+  [data-theme="dark"][data-char="claude"]{   --accent:#d6a48f; --accent-ink:#371b10; --accent-text:#c87351; --accent-tint:rgba(214,164,143,.18)}
+  [data-theme="dark"][data-char="deepseek"]{ --accent:#9c9ec9; --accent-ink:#101237; --accent-text:#797fd5; --accent-tint:rgba(156,158,201,.18)}
+  [data-theme="dark"][data-char="gemini"]{   --accent:#a790d5; --accent-ink:#1d1037; --accent-text:#9575d4; --accent-tint:rgba(167,144,213,.18)}
+  [data-theme="dark"][data-char="glm"]{      --accent:#bfa6b4; --accent-ink:#2b1d24; --accent-text:#a57891; --accent-tint:rgba(191,166,180,.18)}
+  [data-theme="dark"][data-char="grok"]{     --accent:#cbbc9a; --accent-ink:#372b10; --accent-text:#c8a451; --accent-tint:rgba(203,188,154,.18)}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;font-family:var(--ui);color:var(--ink);background:#b9c7ad;
+    overflow:hidden;overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit}
+  :focus-visible{outline:3px solid var(--accent-text);outline-offset:3px}
+  h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
+  ul,ol{padding:0;list-style:none}
+  img{display:block}
+
+  /* ============ 背景 ============ */
+  .backdrop{position:fixed;inset:0;z-index:0;overflow:hidden}
+  .backdrop img{width:100%;height:100%;object-fit:cover;filter:saturate(1.16) contrast(1.06) brightness(1.02) hue-rotate(var(--accent-hue,0deg))}
+  [data-theme="dark"] .backdrop img{filter:saturate(.7) brightness(.34) hue-rotate(var(--accent-hue,0deg))}
+  .backdrop::after{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(58% 48% at 64% 32%,var(--accent-tint),transparent 66%),
+      radial-gradient(55% 50% at 22% 20%,rgba(255,246,214,.20),transparent 68%),
+      radial-gradient(60% 55% at 82% 78%,rgba(146,190,118,.18),transparent 70%),
+      linear-gradient(180deg,rgba(84,80,42,.12),rgba(52,46,20,.28));
+  }
+  [data-theme="dark"] .backdrop::after{
+    background:
+      radial-gradient(55% 50% at 22% 20%,rgba(255,214,110,.10),transparent 68%),
+      radial-gradient(60% 55% at 82% 78%,rgba(90,140,90,.10),transparent 70%),
+      linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.56));
   }
 
-  /* No-JS fallback. When this markup is injected into the New API app shell
-     with innerHTML, no script runs and nothing ever sets data-theme, so the
-     page follows the OS preference instead. The light values are repeated
-     here because CSS cannot alias a whole declaration block. */
-  @media (prefers-color-scheme: light){
-    #ph-home:not([data-theme]){
-      --bg: #ecebe4;
-      --bg-2: #e3e1d9;
-      --surface: #f6f5f0;
-      --surface-2: #e7e5dd;
-      --line: #cdc8bc;
-      --line-2: #a49c8d;
-      --ink: #1d1a16;
-      --ink-2: #4b443b;
-      --ink-3: #6d6559;
-      --accent: #e8a33d;
-      --accent-text: #8a5305;
-      --accent-ink: #1a1206;
-      --accent-soft: rgba(196, 130, 24, 0.12);
-      --accent-line: rgba(180, 118, 20, 0.4);
-      --shadow-hard: 4px 4px 0 rgba(60, 50, 34, 0.16);
-      --shadow-soft: 0 18px 40px -30px rgba(60, 48, 30, 0.5);
-      --scrim: linear-gradient(96deg, rgba(236, 235, 228, 0.06) 0%, rgba(236, 235, 228, 0.62) 30%, rgba(236, 235, 228, 0.95) 52%, #ecebe4 72%);
-      --scanline: rgba(0, 0, 0, 0);
-      --grid-tint: rgba(120, 96, 40, 0.06);
+  /* ============ 玻璃舞台（固定一屏，页面永不滚动） ============ */
+  .stage{
+    position:fixed;inset:clamp(10px,1.1vw,18px);z-index:1;
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    grid-template-areas:"top" "view" "bar";
+    padding:clamp(12px,1.4vw,20px) clamp(16px,2vw,34px) clamp(8px,1vw,14px);
+    border-radius:clamp(26px,3.2vw,56px);
+    background:linear-gradient(152deg,var(--glass-1),var(--glass-2) 46%,var(--glass-1));
+    border:1px solid var(--glass-line);
+    box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.7);
+    backdrop-filter:blur(30px) saturate(130%);
+    -webkit-backdrop-filter:blur(30px) saturate(130%);
+    overflow:hidden;
+  }
+  .stage::before{
+    content:"";position:absolute;inset:10px;border-radius:inherit;
+    border:1px solid var(--glass-inner);pointer-events:none;z-index:5;
+  }
+  .squiggle{position:absolute;top:52px;right:-2.4%;width:34%;opacity:.18;pointer-events:none;z-index:0}
+  .squiggle path{stroke:var(--ink)}
+
+  /* ============ 顶栏 ============ */
+  .topbar{
+    grid-area:top;z-index:6;min-width:0;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    min-height:64px;padding:0 clamp(4px,1vw,14px);
+  }
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .brand-mark{
+    flex:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--accent-text);
+    position:relative;
+  }
+  .brand-mark::after{
+    content:"";position:absolute;inset:5px;background:var(--accent);
+    border-radius:2px;transform:rotate(45deg);
+  }
+  .brand-word{font:900 19px/1 var(--serif);letter-spacing:.01em;white-space:nowrap}
+  .brand-word em{font-style:normal;color:var(--accent-text)}
+  .ver{
+    font:500 11.5px/1 var(--mono);color:var(--ink-3);white-space:nowrap;
+    padding:5px 9px;border-radius:8px;border:1px solid var(--hair);
+  }
+  .topnav{display:flex;align-items:center;gap:clamp(6px,1.4vw,20px);white-space:nowrap}
+  .topnav a{
+    font:500 14.5px/1 var(--ui);color:var(--ink-2);padding:8px 4px;border-radius:8px;
+    transition:color .25s ease;
+  }
+  .topnav a:hover{color:var(--ink)}
+  .topnav a[aria-current="page"]{color:var(--ink);font-weight:700}
+  .actions{display:flex;align-items:center;gap:8px}
+
+  /* ============ 看板娘选择器 ============ */
+  .char-picker{display:flex;align-items:center;gap:5px;min-width:0}
+  .char-btn{
+    flex:none;width:26px;height:34px;padding:0;border-radius:8px;overflow:hidden;cursor:pointer;
+    border:1px solid var(--btn-line);background:var(--btn-bg);opacity:.66;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s ease,box-shadow .25s ease;
+  }
+  .char-btn img{width:100%;height:100%;object-fit:cover;object-position:50% 10%}
+  .char-btn:hover{opacity:1;transform:translateY(-2px)}
+  .char-btn[aria-pressed="true"]{
+    opacity:1;border-color:var(--accent);
+    box-shadow:0 0 0 2px var(--accent-tint),var(--shadow-card);
+  }
+  .ghost-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:8px 13px;border-radius:var(--r-pill);cursor:pointer;
+    background:var(--btn-bg);color:var(--btn-fg);border:1px solid var(--btn-line);
+    font:500 13px/1 var(--ui);transition:transform .28s cubic-bezier(.2,.8,.2,1),background-color .28s ease;
+  }
+  .ghost-btn:hover{transform:translateY(-2px)}
+  .avatar{
+    flex:none;width:34px;height:34px;border-radius:var(--r-pill);
+    display:grid;place-items:center;background:var(--accent);
+    color:var(--accent-ink);font:900 15px/1 var(--serif);
+  }
+  .avatar:hover{filter:brightness(1.05)}
+
+  /* ============ 左侧视窗导航栏 ============ */
+  .rail{
+    position:absolute;z-index:7;left:clamp(14px,1.6vw,24px);top:50%;min-width:0;
+    transform:translateY(-46%);
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .rail-btn{
+    display:flex;align-items:center;gap:9px;
+    padding:9px 15px 9px 12px;border-radius:var(--r-pill);
+    background:var(--btn-bg);border:1px solid var(--btn-line);color:var(--btn-fg);
+    box-shadow:var(--shadow-card);
+    font:500 13.5px/1 var(--ui);white-space:nowrap;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),background-color .3s ease,color .3s ease;
+  }
+  .rail-btn .num{font:700 12px/1 var(--mono);color:var(--ink-3);transition:color .3s ease}
+  .rail-btn:hover{transform:translateY(-2px)}
+  .rail-btn[aria-current="true"]{
+    background:var(--accent);border-color:transparent;color:var(--accent-ink);
+    box-shadow:0 14px 30px var(--accent-tint);
+  }
+  .rail-btn[aria-current="true"] .num{color:var(--accent-ink);opacity:.72}
+
+  /* ============ 视窗容器 ============ */
+  .viewport{grid-area:view;position:relative;min-height:0;min-width:0;z-index:2}
+  .view{
+    /* --vpl 单独提出来，是为了让概览页能把「文案区右边界」算成
+       「看板娘左边界 - 24px」，见 .view--home */
+    --vpl:clamp(72px,6.6vw,116px);
+    position:absolute;inset:0;
+    padding:clamp(6px,1.2vh,16px) 0 clamp(4px,1vh,12px) var(--vpl);
+    overflow:auto;overscroll-behavior:contain;
+    opacity:0;visibility:hidden;
+    outline:none; /* 片段定位会让浏览器聚焦视窗本身，这里不画焦点框（标题仍会拿到键盘焦点） */
+  }
+  /* 只保留「整屏滚动」与「代码横向滚动」两种有意为之的滚动条，且统一细条无箭头 */
+  .view,.term-body,.code{scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+  .view::-webkit-scrollbar,.term-body::-webkit-scrollbar,.code::-webkit-scrollbar{width:8px;height:8px}
+  .view::-webkit-scrollbar-track,.term-body::-webkit-scrollbar-track,.code::-webkit-scrollbar-track{background:transparent}
+  .view::-webkit-scrollbar-thumb,.term-body::-webkit-scrollbar-thumb,.code::-webkit-scrollbar-thumb{
+    background:var(--hair);border-radius:var(--r-pill);
+  }
+  .view::-webkit-scrollbar-button,.term-body::-webkit-scrollbar-button,.code::-webkit-scrollbar-button{
+    display:none;width:0;height:0;
+  }
+  /* 默认显示第一屏，:target 覆盖它；无 JS 也能切换。 */
+  #overview{opacity:1;visibility:visible}
+  .view:target{opacity:1;visibility:visible;animation:viewIn .34s cubic-bezier(.2,.8,.2,1) both}
+  .viewport:has(.view:target) #overview:not(:target){opacity:0;visibility:hidden}
+  @keyframes viewIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+  /* ============ 通用块 ============ */
+  .view-head{max-width:78ch;padding:clamp(4px,1vh,14px) 0 0}
+  .view-head--center{text-align:center;margin:0 auto}
+  .view-head h2{font:900 clamp(1.4rem,2.4vw,2.2rem)/1.22 var(--serif);letter-spacing:.01em}
+  .view-sub{margin-top:10px;font-size:14.5px;line-height:1.85;color:var(--ink-2);max-width:62ch}
+  .view-head--center .view-sub{margin-left:auto;margin-right:auto}
+  .hl{color:var(--accent-text)}
+  .tag{
+    display:inline-block;padding:7px 14px;border-radius:var(--r-pill);
+    background:var(--btn-bg);border:1px solid var(--btn-line);
+    font:500 12.5px/1 var(--ui);color:var(--ink-2);letter-spacing:.04em;
+  }
+  .card{
+    border-radius:var(--r-card);padding:clamp(16px,1.6vw,24px);
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:blur(16px) saturate(120%);
+    -webkit-backdrop-filter:blur(16px) saturate(120%);
+  }
+  [data-theme="dark"] .card,[data-theme="dark"] .step{box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.08)}
+  .card-title{font:700 14px/1.4 var(--ui);color:var(--ink-2);letter-spacing:.06em;margin-bottom:10px}
+  .note{
+    margin-top:12px;font-size:12.5px;line-height:1.8;color:var(--ink-2);
+    border-left:3px solid var(--accent);border-radius:0 var(--r-sm) var(--r-sm) 0;
+    padding:9px 12px;background:rgba(255,255,255,.34);
+  }
+  [data-theme="dark"] .note{background:rgba(255,255,255,.05)}
+
+  /* 按钮 */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:space-between;gap:14px;
+    min-width:0;padding:9px 9px 9px 22px;border-radius:var(--r-pill);cursor:pointer;
+    background:var(--btn-bg);border:1px solid var(--btn-line);color:var(--btn-fg);
+    font:500 14.5px/1 var(--ui);white-space:nowrap;
+    box-shadow:var(--shadow-card);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),background-color .3s ease;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(0)}
+  .btn-arrow{
+    flex:none;width:34px;height:34px;border-radius:var(--r-pill);background:var(--accent);
+    display:grid;place-items:center;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),background-color .3s ease;
+  }
+  .btn-arrow::before{content:"→";font:700 15px/1 var(--mono);color:var(--accent-ink)}
+  .btn:hover .btn-arrow{transform:translate(2px,-2px) rotate(6deg);filter:brightness(1.08)}
+
+  /* ============ V1 概览 ============ */
+  /* 看板娘是主角，两层同构图素材叠出来（原图 2752x1536 HD / 场景图 1376x768，
+     同一构图同一宽高比、角色居中偏右；两层各按自己的像素尺寸 cover，几何天然对齐）：
+       .scene  = 氛围底：场景图模糊放大，只当环境色雾（cover 裁切、不套画框）
+       .mascot = 本体：assets/chars 免扣 HD 图（2752x1536），清晰、无画框、带投影
+     上一版把场景图整幅清晰铺满、再用 .scene::after 压色层盖过去，角色被冲淡成
+     壁纸纹理；现在压色层只压氛围底，本体层压在压色层之上、文案卡片之下，
+     于是她是「站出来的看板娘」。文案对比度仍由压色层 + 硬指标守：
+     左右留白带本来就是留给标题正文的，几何上不靠互不重叠。 */
+  .view--home{
+    position:relative;
+    display:grid;grid-template-rows:minmax(min-content,1fr) auto;
+    gap:clamp(12px,2vh,26px);
+    /* 文案列宽：560px 上限是不让正文行长失控；46% 是相对 .home-top
+       （= 视窗宽 − --vpl）的占比，保证文案右边界落在 .scene::after 满不透明
+       区（52%）之内。改这里或改停点都必须重测文案区最坏对比度（1024px
+       视口最吃紧，实测最差 5.15:1 在 grok / 浅色），不能低于 4.5:1。 */
+    --hero-w:min(560px,46%);
+    /* 左起渐隐的压色层：托住文案对比度，同时吃掉场景左边缘。
+       浅色主题用接近场景留白的近白，深色主题用和 --glass-solid 同族的深墨绿。
+       三个 alpha 与下面的停点同样由 scene_check 量出来后再定。 */
+    --scene-scrim:rgba(251,249,246,.97);
+    --scene-scrim-mid:rgba(251,249,246,.86);
+    --scene-fade:rgba(251,249,246,.88);
+  }
+  [data-theme="dark"] .view--home{
+    --scene-scrim:rgba(13,15,12,.86);
+    --scene-scrim-mid:rgba(13,15,12,.70);
+    --scene-fade:rgba(13,15,12,.86);
+  }
+  .scene{
+    position:absolute;inset:0;z-index:0;overflow:hidden;
+    border-radius:var(--r-big);pointer-events:none;
+    /* 图片解码前的兜底：用 scrim 同色，避免先闪一下页面底色 */
+    background:var(--scene-scrim);
+  }
+  /* 氛围底：场景图模糊放大，只留角色周围的环境色雾——清晰细节全部让给
+     上面的 .mascot，两层都清晰会叠成重影。scale(1.08) 让模糊边缘不露底色。 */
+  .scene img{
+    display:block;width:100%;height:100%;object-fit:cover;object-position:56% 42%;
+    filter:blur(26px) saturate(1.12);transform:scale(1.08);
+  }
+  /* 深色主题把这层压暗：这批图天生是白的，不压暗会在深色玻璃上炸开一片白。
+     注意只压氛围底、不压上面的免扣本体——上一版就是连人一起压才被当成了背景。 */
+  [data-theme="dark"] .scene img{filter:blur(26px) saturate(1.12) brightness(.62)}
+  /* ::before / ::after 是绝对定位、<img> 不是，所以两片渐变都落在图上。
+     绘制顺序 ::before 在下、::after 在上，正好是「先压底边、再压左边」。 */
+  .scene::before{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 52%,var(--scene-fade) 100%);
+  }
+  .scene::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,var(--scene-scrim) 0,var(--scene-scrim) 52%,
+                               var(--scene-scrim-mid) 68%,transparent 86%);
+  }
+  /* 免扣看板娘本体：与氛围底同一张构图（assets/chars 免扣图与 assets/scenes 场景图
+     是像素级同源，实测不透明区平均差 2.3–2.8/255），所以同一 object-position 就
+     天然逐像素对齐，不需要手调几何。投影把她从模糊氛围里拎出来——这一笔是「凸显」
+     的关键，调弱会让上下两层糊在一起。 */
+  .mascot{
+    position:absolute;inset:0;z-index:1;overflow:hidden;
+    border-radius:var(--r-big);pointer-events:none;
+  }
+  .mascot img{
+    display:block;width:100%;height:100%;object-fit:cover;object-position:56% 42%;
+    filter:drop-shadow(0 16px 32px rgba(28,22,14,.30));
+  }
+  [data-theme="dark"] .mascot img{filter:drop-shadow(0 16px 32px rgba(0,0,0,.55))}
+  /* z 轴自下而上：scene(0) < 压色层 < mascot(1) < home-top(2) / chips(5) /
+     home-bottom(6)——她压在氛围底与压色层之上，卡片和数字片又压在她下身前方，
+     参考图同款层次。 */
+  .home-top{position:relative;z-index:2;display:flex;align-items:center;min-height:0}
+  .hero{width:100%;max-width:var(--hero-w)}
+  .hero-title{
+    margin-top:clamp(10px,1.6vh,16px);font:900 clamp(1.7rem,2.9vw,3rem)/1.18 var(--serif);
+    letter-spacing:.01em;text-shadow:0 2px 0 rgba(255,255,255,.45);
+  }
+  [data-theme="dark"] .hero-title{text-shadow:none}
+  .hero-title .hl{display:block}
+  .hero-sub{margin-top:clamp(8px,1.2vh,16px);font-size:15px;line-height:1.95;color:var(--ink-2);max-width:27em}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:clamp(12px,2vh,24px)}
+  .chips{
+    display:flex;gap:14px;align-items:flex-start;
+    position:relative;z-index:5;
+  }
+  .chip-card{
+    display:block;min-width:132px;padding:14px 34px 13px 16px;position:relative;
+    border-radius:var(--r-chip) var(--r-chip) var(--r-chip) 12px;
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:blur(16px);
+    transition:transform .32s cubic-bezier(.2,.8,.2,1);
+  }
+  [data-theme="dark"] .chip-card{box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.08)}
+  .chip-card b{display:block;font:900 clamp(1.3rem,1.7vw,1.6rem)/1 var(--mono)}
+  .chip-card small{display:block;margin-top:7px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+  .chip-card::after{
+    content:"→";position:absolute;top:9px;right:9px;width:24px;height:24px;
+    border-radius:var(--r-pill);background:var(--accent);color:var(--accent-ink);
+    display:grid;place-items:center;font:700 12px/1 var(--mono);
+    transition:transform .32s cubic-bezier(.2,.8,.2,1);
+  }
+  .chip-card:hover{transform:translateY(-4px)}
+  .chip-card:hover::after{transform:translate(2px,-2px) rotate(6deg)}
+  .chip-card--b{margin-top:34px}
+  .home-bottom{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(12px,2vw,28px);
+    position:relative;z-index:6;
+  }
+  .panel{
+    width:clamp(228px,26%,340px);
+    border-radius:var(--r-big);padding:clamp(14px,2.2vh,24px);
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:blur(18px) saturate(120%);
+    -webkit-backdrop-filter:blur(18px) saturate(120%);
+  }
+  [data-theme="dark"] .panel{box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.08)}
+  .panel-kicker{font-size:12.5px;line-height:1.7;color:var(--ink-2)}
+  .panel-word{font:900 clamp(1.4rem,2vw,2rem)/1.2 var(--serif);margin:4px 0 clamp(8px,1.4vh,14px)}
+  .clients{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:clamp(8px,1.2vh,14px)}
+  .clients li{
+    font:500 12px/1 var(--ui);color:var(--ink-2);padding:6px 11px;
+    border-radius:var(--r-pill);border:1px solid var(--hair);
+  }
+  .panel .btn{width:100%}
+
+  /* ============ V2 接口 ============ */
+  .view--api{display:grid;grid-template-rows:auto minmax(0,1fr);gap:clamp(12px,1.8vh,22px)}
+  /* 矮窗口兜底：宁可整屏滚动，也不把端点卡内容裁掉 */
+  @media (max-height:660px){
+    .view--api{grid-template-rows:auto minmax(min-content,1fr)}
+  }
+  .api-grid{
+    display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
+    grid-template-rows:minmax(0,1fr); /* 终端窗允许收缩，代码由窗内滚动，整屏不再出滚动条 */
+    gap:clamp(14px,1.6vw,24px);min-height:0;
+  }
+  .card--endpoints{display:flex;flex-direction:column;overflow:hidden}
+  .card--endpoints .note{margin-top:auto}
+  .kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--hair)}
+  .kv:last-of-type{border-bottom:0}
+  .kv dt{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+  .kv dd{font:500 12.5px/1.5 var(--mono);text-align:right;word-break:break-all}
+  .term{
+    display:flex;flex-direction:column;min-height:0;
+    border-radius:var(--r-card);overflow:hidden;
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:blur(16px) saturate(120%);
+    -webkit-backdrop-filter:blur(16px) saturate(120%);
+  }
+  [data-theme="dark"] .term{box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.08)}
+  .term-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:11px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap;
+  }
+  .tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .tab{
+    font:500 12.5px/1 var(--mono);color:var(--ink-3);
+    padding:6px 11px;border-radius:var(--r-pill);border:1px solid transparent;
+  }
+  .tab.is-on{color:var(--ink);border-color:var(--hair);background:rgba(255,255,255,.4)}
+  [data-theme="dark"] .tab.is-on{background:rgba(255,255,255,.07)}
+  .term-status{display:flex;align-items:center;gap:7px;font:500 12px/1 var(--mono);color:var(--ink-2)}
+  .term-status::before{content:"";width:7px;height:7px;border-radius:var(--r-pill);background:var(--accent);flex:none}
+  .term-body{
+    flex:1;min-height:0;overflow:auto;padding:14px 16px 16px;
+    font-family:var(--mono);font-size:12.6px;line-height:1.78;
+  }
+  .term-path{color:var(--ink);word-break:break-all}
+  .term-path .m{color:var(--accent-text);font-weight:700;margin-right:6px}
+  .term-label{margin:12px 0 6px;font-size:11px;letter-spacing:.16em;color:var(--ink-3)}
+  .code{white-space:pre;overflow-x:auto;margin:0;font:inherit;color:var(--ink-2)}
+  .code .k{color:var(--accent-text)}
+  .code .c{color:var(--ink-3)}
+  .caret{
+    display:inline-block;width:7px;height:13px;background:var(--accent-text);
+    vertical-align:-2px;margin-left:3px;
+    animation:blink 1.05s steps(1,end) infinite;
+  }
+  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+  .term-foot{
+    display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;
+    margin-top:14px;padding-top:11px;border-top:1px solid var(--hair);
+    font-size:11.5px;letter-spacing:.08em;color:var(--ink-3);
+  }
+
+  /* ============ V3 能力 ============ */
+  .view--skills{display:grid;grid-template-rows:auto minmax(min-content,1fr) auto;gap:clamp(8px,1.6vh,20px)}
+  .bento{
+    display:grid;gap:clamp(10px,1.6vh,18px);min-height:0;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:minmax(min-content,1fr) minmax(min-content,1fr);
+    grid-template-areas:"a a b" "c d d";
+  }
+  .bento .card{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:clamp(12px,1.8vh,20px)}
+  .b-a{grid-area:a}.b-b{grid-area:b}.b-c{grid-area:c}.b-d{grid-area:d}
+  .b-b{border-color:var(--accent);background:linear-gradient(150deg,var(--accent-tint),rgba(255,255,255,.44))}
+  [data-theme="dark"] .b-b{border-color:var(--accent);background:linear-gradient(150deg,var(--accent-tint),rgba(24,26,20,.72) 62%)}
+  .card-head{display:flex;align-items:baseline;gap:10px}
+  .idx{font:700 12px/1 var(--mono);color:var(--accent-text)}
+  .card-head h3{font:900 clamp(1.05rem,1.5vw,1.32rem)/1.3 var(--serif)}
+  .bento .card>p{margin-top:clamp(4px,.8vh,8px);font-size:13px;line-height:1.8;color:var(--ink-2)}
+  .model-grid{margin-top:clamp(8px,1.2vh,14px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:1;grid-template-rows:repeat(2,minmax(0,1fr))}
+  .model-grid span{
+    font:500 12.5px/1 var(--mono);text-align:center;padding:clamp(7px,1.1vh,11px) 6px;
+    display:grid;place-items:center;min-height:0;
+    border-radius:var(--r-sm);border:1px solid var(--hair);color:var(--ink-2);
+    background:rgba(255,255,255,.28);
+  }
+  [data-theme="dark"] .model-grid span{background:rgba(255,255,255,.05)}
+  .switch{margin-top:auto;display:flex;align-items:center;gap:10px;padding-top:16px}
+  .switch-track{
+    width:56px;height:30px;border-radius:var(--r-pill);background:var(--accent);
+    position:relative;flex:none;box-shadow:inset 0 1px 2px rgba(80,62,20,.2);
+  }
+  .switch-track::after{
+    content:"";position:absolute;top:3px;left:29px;width:24px;height:24px;
+    border-radius:var(--r-pill);background:#fffdf6;
+    box-shadow:0 2px 6px rgba(80,62,20,.24);
+  }
+  .switch small{font-size:12px;color:var(--ink-2)}
+  .regions{margin-top:12px;display:grid;gap:7px;flex:1;align-content:space-evenly}
+  .regions li{display:flex;align-items:baseline;gap:10px;font-size:13px;color:var(--ink-2)}
+  .regions .n{font:700 11.5px/1 var(--mono);color:var(--ink-3)}
+  .regions .rule{flex:1;border-bottom:1px dashed var(--hair);transform:translateY(-3px)}
+  .keys{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;flex:1;align-content:center}
+  .keys li{
+    font:500 12px/1 var(--mono);color:var(--ink-2);padding:7px 12px;
+    border-radius:var(--r-sm);border:1px solid var(--hair);
+  }
+  .four{
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:clamp(10px,1.4vw,22px);padding-top:clamp(8px,1.4vh,16px);
+    border-top:1px solid var(--hair);
+  }
+  .four li{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .four .glyph{font:700 15px/1 var(--mono);color:var(--accent-text)}
+  .four h3{font:700 14.5px/1.4 var(--ui)}
+  .four p{font-size:12.5px;line-height:1.75;color:var(--ink-2)}
+
+  /* ============ V4 上手 ============ */
+  .view--start{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:clamp(12px,1.8vh,22px)}
+  .steps{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:clamp(12px,1.6vw,26px);align-content:center;
+  }
+  .step{
+    position:relative;display:flex;flex-direction:column;gap:9px;min-width:0;
+    padding:clamp(16px,1.5vw,22px);border-radius:var(--r-big);
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+  }
+  .step-n{
+    width:32px;height:32px;border-radius:var(--r-pill);background:var(--accent);color:var(--accent-ink);
+    display:grid;place-items:center;font:700 14px/1 var(--mono);
+  }
+  .step h3{font:900 clamp(1.05rem,1.4vw,1.3rem)/1.3 var(--serif)}
+  .step p{font-size:13px;line-height:1.8;color:var(--ink-2)}
+  .step:not(:last-child)::after{
+    content:"";position:absolute;top:50%;left:100%;
+    width:clamp(12px,1.6vw,26px);border-top:1px dashed var(--hair);
+  }
+  .start-foot{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .chips--inline{position:static;transform:none;display:flex;gap:14px}
+  .chips--inline .chip-card--b{margin-top:0}
+
+  /* ============ 底部状态条 ============ */
+  .statusbar{
+    grid-area:bar;z-index:6;min-width:0;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:8px clamp(4px,1vw,14px) 2px;
+    font:500 11.5px/1.5 var(--mono);color:var(--ink-3);
+    border-top:1px solid var(--hair);
+  }
+  .statusbar a:hover{color:var(--ink)}
+  .sb-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+  .sb-copy{white-space:nowrap}
+  .routes{display:none;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .routes a{white-space:nowrap}
+
+  /* ============ 地区提醒（首次访问弹一次的服务范围提示） ============
+     层级：.backdrop(0) < .stage(1) < .notice(50)，所以它盖住整站（含舞台圆角外的留白）。
+     显隐只有一条规则：#noticeAck:checked ~ .notice{display:none}——用 checkbox 而不是
+     JS 控制，是为了让「无 JS 也能用」这条原则继续成立（没 JS 时靠 <label> 也能关掉，
+     只是不会记住、也没有底部那个回看入口）。 */
+  .notice-ack{position:fixed;top:0;left:0;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
+  .notice{
+    position:fixed;inset:0;z-index:50;
+    display:grid;grid-template-columns:minmax(0,1fr);place-items:center;
+    padding:clamp(16px,4vw,40px);
+    background:rgba(46,40,24,.28);
+    backdrop-filter:blur(10px) saturate(118%);
+    -webkit-backdrop-filter:blur(10px) saturate(118%);
+  }
+  [data-theme="dark"] .notice{background:rgba(0,0,0,.48)}
+  #noticeAck:checked ~ .notice{display:none}
+  .notice__card{
+    width:min(600px,100%);min-width:0;max-height:min(82vh,660px);overflow:auto;
+    border-radius:var(--r-big);padding:clamp(22px,3.4vw,36px);
+    background:var(--card-bg);border:1px solid var(--card-line);
+    box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:blur(18px) saturate(130%);
+    -webkit-backdrop-filter:blur(18px) saturate(130%);
+    animation:notice-in .5s cubic-bezier(.2,.8,.2,1) both;
+  }
+  [data-theme="dark"] .notice__card{box-shadow:var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.08)}
+  @keyframes notice-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+  .notice__kicker{
+    margin-bottom:12px;color:var(--accent-text);
+    font:600 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;
+  }
+  .notice__title{margin-bottom:12px;font:900 clamp(21px,2.4vw,27px)/1.35 var(--serif);color:var(--ink)}
+  .notice__body{font:400 14.5px/1.95 var(--ui);color:var(--ink-2)}
+  .notice__actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:22px}
+  .notice__ok{text-align:center}
+  .notice__stop{
+    padding:4px 0;background:none;border:0;cursor:pointer;
+    font:500 12.5px/1.6 var(--ui);color:var(--ink-3);
+    text-decoration:underline;text-underline-offset:3px;
+  }
+  .notice__stop:hover{color:var(--ink)}
+  .notice__meta{margin-top:14px;font:500 11.5px/1.6 var(--mono);color:var(--ink-3)}
+  .notice__stopped{display:none;font:400 14.5px/1.95 var(--ui);color:var(--ink-2)}
+  /* 「我已知悉，停止访问」= 死胡同态：撤掉所有继续入口，只留一句「请关闭此页」。
+     不写 localStorage（刷新即回到正常提醒），免得误点之后被永久锁在外面。 */
+  .notice--stopped .notice__body,
+  .notice--stopped .notice__actions,
+  .notice--stopped .notice__meta{display:none}
+  .notice--stopped .notice__stopped{display:block}
+  /* 底部状态条的回看入口：只有 JS 在场才给（无 JS 时它没法把弹层调回来） */
+  .sb-notice{
+    display:none;padding:0;background:none;border:0;cursor:pointer;font:inherit;
+    color:inherit;text-decoration:underline;text-underline-offset:3px;
+  }
+  html.js .sb-notice{display:inline}
+  /* 无 JS 时「停止访问」按钮点了没反应，索性藏起来，别做成假按钮 */
+  html:not(.js) .notice__stop{display:none}
+  /* 小屏：主按钮占满一行，次按钮落到下一行居中，别挤成一行出界 */
+  @media (max-width:520px){
+    .notice__actions{gap:10px}
+    .notice__ok{width:100%;justify-content:center}
+    .notice__stop{width:100%;text-align:center}
+  }
+
+  /* ============ 客户端清单：直接铺在卡片里 ==== ======== */
+  .clients-inline{display:block;font-size:12px;line-height:1.95;color:var(--ink-2)}
+  .clients-inline li{display:inline}
+  .clients-inline li+li::before{content:"·";margin:0 7px;color:var(--ink-3)}
+
+  /* ============ 动效收敛 ============ */
+  @media (prefers-reduced-motion:reduce){
+    .view:target{animation:none}
+    .caret{animation:none}
+    .btn,.btn-arrow,.chip-card,.chip-card::after,.rail-btn,.ghost-btn,.topnav a,.char-btn{transition:none}
+  }
+  @media (prefers-reduced-transparency:reduce){
+    .stage,.card,.panel,.term,.chip-card,.btn,.rail-btn,.ghost-btn{
+      backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--glass-solid);
     }
   }
 
-  #ph-home *, #ph-home *::before, #ph-home *::after{ box-sizing: border-box; }
-
-  #ph-home{ -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
-  #ph-home [id]{ scroll-margin-top: 78px; }
-  #ph-home{
-    margin: 0;
-    /* Contains the scanline overlay, which is absolute rather than fixed so it
-       can never paint over the host application's chrome. */
-    position: relative;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 16px;
-    line-height: 1.75;
-    font-synthesis: none;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-  #ph-home img{ max-width: 100%; display: block; }
-  #ph-home a{ color: inherit; text-decoration: none; }
-  #ph-home button, #ph-home input, #ph-home select{ font: inherit; color: inherit; }
-  #ph-home h1, #ph-home h2, #ph-home h3, #ph-home h4, #ph-home p, #ph-home dl, #ph-home dd, #ph-home dt, #ph-home pre{ margin: 0; }
-  #ph-home table{ border-collapse: collapse; border-spacing: 0; width: 100%; }
-
-  #ph-home :focus-visible{ outline: 2px solid var(--accent); outline-offset: 3px; }
-
-  /* Terminal voice: Latin runs, numerals and micro labels come from a pixel mono. */
-  #ph-home .mono{
-    font-family: var(--font-mono);
-    font-size: 0.92em;
-    letter-spacing: 0.01em;
-    font-variant-ligatures: none;
-  }
-
-  /* --- Layout primitives ------------------------------------------------ */
-  #ph-home .wrap{ width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--pad-x); }
-  #ph-home .sec{ padding: var(--sec-y) 0; }
-  #ph-home .sec-line{ border-top: 1px solid var(--line); }
-
-  #ph-home .sec-head{ max-width: 62ch; }
-  #ph-home .h2{
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(28px, 3.6vw, 46px);
-    line-height: 1.16;
-    letter-spacing: -0.015em;
-  }
-  #ph-home .lede{
-    margin-top: 16px;
-    color: var(--ink-2);
-    font-size: clamp(15px, 1.15vw, 17px);
-    max-width: 46ch;
-    line-height: 1.85;
-  }
-  #ph-home .kicker{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    color: var(--accent-text);
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-  #ph-home .kicker::before{
-    content: "";
-    width: 8px; height: 8px;
-    background: var(--accent);
-    flex: none;
-  }
-  #ph-home .note{
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-3);
-    letter-spacing: 0.02em;
-  }
-
-  /* --- Panels: one recipe for the whole page ---------------------------- */
-  #ph-home .panel{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow-soft);
-  }
-  #ph-home .panel-bar{
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--line);
-    background: var(--surface-2);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    color: var(--ink-2);
-  }
-  #ph-home .panel-bar .grow{ flex: 1 1 auto; }
-
-  #ph-home .led{
-    width: 8px; height: 8px;
-    background: var(--accent);
-    flex: none;
-    display: inline-block;
-  }
-  #ph-home .led-pulse{ animation: pulse 2.4s steps(1, end); animation-iteration-count: infinite; }
-  @keyframes pulse{ 0%, 62% { opacity: 1; } 63%, 100% { opacity: 0.28; } }
-
-  /* --- Buttons: square, hard shadow, one accent --------------------------- */
-  #ph-home .btn{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 13px 22px;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    cursor: pointer;
-    box-shadow: var(--shadow-hard);
-    transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease), background-color 0.16s linear, color 0.16s linear;
-  }
-  #ph-home .btn:hover{ transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5); }
-  #ph-home .btn:active{ transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); }
-  #ph-home .btn-ghost{
-    background: transparent;
-    color: var(--ink);
-    border-color: var(--line-2);
-  }
-  #ph-home .btn-ghost:hover{ border-color: var(--accent); color: var(--accent-text); }
-  #ph-home .btn-sm{ padding: 9px 14px; font-size: 12.5px; }
-
-  /* --- Scanline overlay: fixed, non-interactive, off in light mode -------- */
-  #ph-home .crt{
-    position: absolute;
-    inset: 0;
-    z-index: 60;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--scanline) 0px,
-      var(--scanline) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-  }
-
-  /* --- Utility strip control: shown only when JS can drive it ------------ */
-  /* Embed hardening: the host application ships its own resets and component
-     styles. Restate the page's square shape (the id makes these win over the
-     host's class level rules) and neutralise the controls it likes to restyle. */
-  #ph-home, #ph-home *, #ph-home *::before, #ph-home *::after { border-radius: 0; }
-  #ph-home button { -webkit-appearance: none; appearance: none; background-image: none; }
-  #ph-home .search input { padding: 0; }
-
-  #ph-home .theme-btn{
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px solid var(--line-2);
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: var(--ink-2);
-    transition: border-color 0.16s linear, color 0.16s linear;
-  }
-  #ph-home.js .theme-btn{ display: inline-flex; }
-  #ph-home .theme-btn:hover{ border-color: var(--accent); color: var(--ink); }
-  #ph-home .theme-btn .knob{ width: 8px; height: 8px; background: var(--line-2); }
-  #ph-home .theme-btn[aria-pressed="true"] .knob{ background: var(--accent); }
-  /* Controls that do nothing without JS stay hidden instead of looking broken. */
-  #ph-home:not(.js) .js-only{ display: none !important; }
-
-  /* --- Compliance notice: the first thing under the fixed nav ------------ */
-  #ph-home .notice{
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    padding-top: 16px;
-  }
-  #ph-home .notice-in{
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding-top: 18px;
-    padding-bottom: 18px;
-  }
-  #ph-home .notice-body{ flex: 1 1 auto; min-width: 0; }
-  #ph-home .notice-mark{
-    width: 26px;
-    height: 26px;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--accent);
-    color: var(--accent-text);
-    font-size: 14px;
-    line-height: 1;
-  }
-  #ph-home .notice-title{ font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-  #ph-home .notice-text{
-    margin-top: 6px;
-    color: var(--ink-2);
-    font-size: 14.5px;
-    line-height: 1.8;
-    /* No ch-based cap: the sentence fits the column on one line at desktop
-       widths, and pretty wrapping avoids a one-character last line when the
-       column is narrower. */
-    text-wrap: pretty;
-  }
-
-  /* --- Hero: film strip band with copy in the tavern's dark half ---------- */
-  #ph-home .hero{ position: relative; padding-top: 0; }
-  #ph-home .hero-band{
-    position: relative;
-    height: min(72vh, calc(100vw / 2.357));
-    min-height: 380px;
-    overflow: hidden;
-    background: var(--bg-2);
-    border-bottom: 1px solid var(--line);
-  }
-  #ph-home .hero-band img{
-    width: 100%; height: 100%;
-    object-fit: cover;
-    object-position: center 72%;
-  }
-  #ph-home .hero-scrim{ position: absolute; inset: 0; background: var(--scrim); }
-  #ph-home .hero-copy{
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
-    width: min(46%, 620px);
-    padding: 0 var(--pad-x) 0 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 22px;
-  }
-  #ph-home .hero h1{
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(30px, 3.5vw, 52px);
-    line-height: 1.14;
-    letter-spacing: -0.02em;
-    /* Width is set in em so the headline breaks after 接入 at every viewport
-       instead of leaving a two-character orphan on the second line. */
-    max-width: 7.6em;
-  }
-  #ph-home .hero h1 .mono{
-    font-size: 0.94em;
-    color: var(--accent-text);
-    letter-spacing: 0.02em;
-  }
-  #ph-home .hero-sub{
-    color: var(--ink-2);
-    font-size: clamp(15px, 1.1vw, 16.5px);
-    line-height: 1.8;
-    max-width: 34ch;
-  }
-  #ph-home .hero-ctas{ display: flex; flex-wrap: wrap; gap: 12px; }
-
-  /* --- Terminal: the product proof, overlapping the hero band ------------ */
-  #ph-home .term-wrap{ position: relative; z-index: 3; margin-top: -76px; }
-  #ph-home .term{ max-width: 900px; }
-  #ph-home .term-body{
-    padding: 16px 18px 6px;
-    background: var(--bg-2);
-    /* Fixed height: rows are appended at run time, so the panel must never
-       grow and nothing may ever overflow into a scrollbar. */
-    height: 262px;
-    overflow: hidden;
-  }
-  #ph-home .log{
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    line-height: 1.85;
-    color: var(--ink-2);
-    height: 100%;
-    overflow: hidden;
-  }
-  #ph-home .log .ln{ display: block; }
-  /* Request rows are a real column grid: a row always fits the panel width
-     instead of pushing the box wider and spawning a scrollbar. */
-  #ph-home .log .ln.req{
-    display: grid;
-    /* Fixed track sizes stay left-packed like real terminal output: unlike
-       `auto`, they do not soak up the leftover space. The model track may
-       still shrink and truncate when the panel is narrow. */
-    grid-template-columns: max-content minmax(0, max-content) max-content max-content max-content;
-    gap: 0 12px;
-    align-items: baseline;
-  }
-  #ph-home .log .ln.req > span{ white-space: nowrap; }
-  #ph-home .log .ln.req .m{ overflow: hidden; text-overflow: ellipsis; }
-  #ph-home .log .ln.req .s{ color: var(--ink-3); }
-  #ph-home .log .ln .t{ color: var(--ink-3); }
-  /* Warn and error rows carry prose, so they wrap instead of overflowing. */
-  #ph-home .log .ln.msg{ display: flex; gap: 8px; align-items: baseline; white-space: normal; }
-  #ph-home .log .ln.msg .t{ flex: none; }
-  #ph-home .log .ln.msg .x{ flex: 1 1 auto; min-width: 0; }
-  #ph-home .log .ln.ok{ color: var(--ink-2); }
-  #ph-home .log .ln.warn{ color: var(--accent-text); }
-  #ph-home .log .ln.err{ color: var(--ink); }
-  #ph-home .log .ln .tag{ background: var(--accent); color: var(--accent-ink); padding: 0 5px; flex: none; }
-  #ph-home .log .ln .tag-warn{ border: 1px solid var(--accent-line); color: var(--accent-text); padding: 0 4px; flex: none; }
-  #ph-home .log .ln.fresh{ animation: ln-in 0.32s var(--ease); }
-  @keyframes ln-in{ from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  #ph-home .term-foot{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 22px;
-    align-items: center;
-    padding: 12px 18px;
-    border-top: 1px solid var(--line);
-    background: var(--surface-2);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-3);
-  }
-  #ph-home .term-foot b{ color: var(--ink); font-weight: 400; }
-  #ph-home .term-legend{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 18px;
-    margin-top: 14px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-3);
-  }
-
-  /* --- Compatibility ticker: the page's single horizontal loop ---------- */
-  #ph-home .compat{ padding: 30px 0 6px; border-bottom: 1px solid var(--line); }
-  #ph-home .compat-label{
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    color: var(--ink-3);
-    margin-bottom: 16px;
-  }
-  #ph-home .ticker{ overflow: hidden; padding-bottom: 26px; }
-  #ph-home .ticker-track{
-    display: flex;
-    width: max-content;
-    animation: tick 52s linear;
-    animation-iteration-count: infinite;
-  }
-  #ph-home .ticker:hover .ticker-track{ animation-play-state: paused; }
-  @keyframes tick{ from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  #ph-home .ticker-set{ display: flex; align-items: center; gap: 34px; padding-right: 34px; }
-  #ph-home .ticker-set span{
-    font-family: var(--font-mono);
-    font-size: 14px;
-    letter-spacing: 0.03em;
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-  #ph-home .ticker-set i{ width: 6px; height: 6px; background: var(--line-2); }
-
-  /* --- Live routing board ------------------------------------------------- */
-  #ph-home .live-grid{
-    display: grid;
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-    gap: clamp(28px, 4vw, 64px);
-    align-items: start;
-  }
-  #ph-home .board{ padding: 0 0 14px; }
-  #ph-home .board-head, #ph-home .board-row{
-    display: grid;
-    grid-template-columns: minmax(0, 1.7fr) 88px 72px 84px;
-    gap: 14px;
-    align-items: center;
-    padding: 13px 16px;
-  }
-  #ph-home .board-head{
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    letter-spacing: 0.1em;
-    color: var(--ink-3);
-    border-bottom: 1px solid var(--line);
-  }
-  #ph-home .board-row{ border-bottom: 1px solid var(--line); }
-  #ph-home .board-row:last-child{ border-bottom: 0; }
-  #ph-home .board-row .line-name{ display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
-  #ph-home .board-row .line-name small{
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink-3);
-    letter-spacing: 0.02em;
-  }
-  #ph-home .board-row .val{
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--ink-2);
-    font-variant-numeric: tabular-nums;
-  }
-  #ph-home .board-row .state{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    color: var(--ink-2);
-  }
-
-  /* --- Bento: five cells, three of them carry non-text material ---------- */
-  #ph-home .bento{
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 16px;
-    margin-top: 44px;
-  }
-  #ph-home .cell{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 190px;
-  }
-  #ph-home .cell h3{ font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-  #ph-home .cell p{ color: var(--ink-2); font-size: 14.5px; line-height: 1.8; }
-  #ph-home .cell-photo{ padding: 0; justify-content: flex-end; overflow: hidden; position: relative; }
-  #ph-home .cell-photo img{ width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-  #ph-home .cell-photo .photo-copy{
-    position: relative;
-    padding: 22px;
-    background: linear-gradient(to top, var(--surface) 40%, rgba(25, 21, 18, 0));
-  }
-  #ph-home[data-theme="light"] .cell-photo .photo-copy{
-    background: linear-gradient(to top, var(--surface) 40%, rgba(246, 245, 240, 0));
-  }
-  #ph-home .cell-a{ grid-column: span 7; min-height: 300px; }
-  #ph-home .cell-b{ grid-column: span 5; }
-  #ph-home .cell-c{ grid-column: span 5; }
-  #ph-home .cell-d{ grid-column: span 3; }
-  #ph-home .cell-e{ grid-column: span 4; }
-  #ph-home .diagram{
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.75;
-    color: var(--accent-text);
-    white-space: pre;
-    overflow-x: auto;
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    padding: 14px;
-  }
-  #ph-home .kv{ display: grid; gap: 0; }
-  #ph-home .kv div{
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 13.5px;
-  }
-  #ph-home .kv div:last-child{ border-bottom: 0; }
-  #ph-home .kv dt, #ph-home .kv span:first-child{ color: var(--ink-3); }
-  #ph-home .kv span:last-child{ font-family: var(--font-mono); font-size: 13px; }
-  #ph-home .spark{ display: flex; align-items: flex-end; gap: 3px; height: 46px; }
-  #ph-home .spark i{ flex: 1 1 0; background: var(--accent); height: 30%; }
-  #ph-home .spark i.dim{ background: var(--line-2); }
-  #ph-home .metrics{ display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
-  #ph-home .metrics b{ color: var(--ink); font-weight: 400; }
-  #ph-home .snippet{
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    color: var(--ink);
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    padding: 12px 14px;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-    overflow-x: auto;
-  }
-  #ph-home .snippet span:last-child{ color: var(--ink-3); font-size: 11px; }
-
-  /* --- Migrate: tabs + before/after code --------------------------------- */
-  #ph-home .migrate-grid{
-    display: grid;
-    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
-    gap: clamp(28px, 4vw, 60px);
-    align-items: start;
-  }
-  #ph-home .tabs{ display: flex; gap: 0; border-bottom: 1px solid var(--line); }
-  #ph-home .tab{
-    background: transparent;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    padding: 11px 18px;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.05em;
-    color: var(--ink-3);
-    transition: color 0.16s linear, border-color 0.16s linear;
-  }
-  #ph-home .tab:hover{ color: var(--ink); }
-  #ph-home .tab[aria-selected="true"]{ color: var(--ink); border-bottom-color: var(--accent); }
-  #ph-home .code-body{ padding: 18px 18px 20px; background: var(--bg-2); }
-  #ph-home .code-pane{ display: none; }
-  #ph-home .code-pane.on{ display: block; }
-  #ph-home .code{
-    font-family: var(--font-mono);
-    font-size: 12.8px;
-    line-height: 1.95;
-    white-space: normal;
-    overflow-x: auto;
-    color: var(--ink-2);
-  }
-  #ph-home .code .rowline{ display: block; white-space: pre; padding-left: 14px; border-left: 2px solid transparent; }
-  #ph-home .code .old{ border-left-color: var(--line-2); color: var(--ink-3); }
-  #ph-home .code .new{ border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
-  #ph-home .code .cm{ color: var(--ink-3); }
-  #ph-home .code .st{ color: var(--accent-text); }
-  #ph-home .copy-row{ display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
-  #ph-home .copied{ color: var(--accent-text); font-family: var(--font-mono); font-size: 12px; opacity: 0; transition: opacity 0.2s linear; }
-  #ph-home .copied.on{ opacity: 1; }
-
-  /* --- Catalog: filters + real table ------------------------------------- */
-  #ph-home .cat-tools{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
-    margin: 30px 0 20px;
-  }
-  #ph-home .search{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid var(--line-2);
-    padding: 10px 14px;
-    background: var(--surface);
-    min-width: 280px;
-    flex: 1 1 280px;
-  }
-  #ph-home .search input{
-    border: 0;
-    background: transparent;
-    outline: none;
-    width: 100%;
-    font-size: 14px;
-  }
-  #ph-home .search input::placeholder{ color: var(--ink-3); opacity: 1; }
-  #ph-home .search .mono{ color: var(--ink-3); white-space: nowrap; flex: none; }
-  #ph-home .chips{ display: flex; flex-wrap: wrap; gap: 8px; }
-  #ph-home .chip-group{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  #ph-home .chip-label{ color: var(--ink-3); font-size: 12px; white-space: nowrap; }
-  #ph-home .chip{
-    background: transparent;
-    border: 1px solid var(--line-2);
-    padding: 9px 14px;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--ink-2);
-    transition: border-color 0.16s linear, color 0.16s linear, background-color 0.16s linear;
-  }
-  #ph-home .chip:hover{ border-color: var(--accent); color: var(--ink); }
-  #ph-home .chip[aria-pressed="true"]{ background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  #ph-home .cat-table{ border: 1px solid var(--line); background: var(--surface); }
-  #ph-home .cat-table th, #ph-home .cat-table td{
-    text-align: left;
-    padding: 13px 16px;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
-  }
-  #ph-home .cat-table thead th{
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    letter-spacing: 0.1em;
-    color: var(--ink-3);
-    background: var(--surface-2);
-    font-weight: 400;
-  }
-  #ph-home .cat-table tbody tr:last-child td{ border-bottom: 0; }
-  #ph-home .cat-table tbody tr:hover td{ background: var(--accent-soft); }
-  #ph-home .cat-table .m{ font-family: var(--font-mono); font-size: 13.5px; }
-  #ph-home .cat-table .m span{ display: block; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #ph-home .cat-table .tags{ font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
-  #ph-home .cat-table .num{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
-  #ph-home .cat-table .hide{ display: none; }
-  #ph-home .cat-foot{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
-  #ph-home .empty{
-    display: none;
-    border: 1px solid var(--line);
-    border-top: 0;
-    padding: 34px 16px;
-    text-align: center;
-    color: var(--ink-2);
-    font-size: 14.5px;
-  }
-  #ph-home .empty.on{ display: block; }
-  #ph-home .empty .mono{ display: block; color: var(--ink-3); font-size: 12px; margin-bottom: 10px; }
-
-  /* --- Steps: vertical rail, not three equal cards ----------------------- */
-  #ph-home .steps-grid{
-    display: grid;
-    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
-    gap: clamp(28px, 4vw, 64px);
-    align-items: start;
-  }
-  #ph-home .rail{ border-left: 1px solid var(--line); }
-  #ph-home .step{ display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 20px; padding: 26px 0 26px 0; }
-  #ph-home .step + .step{ border-top: 1px solid var(--line); }
-  #ph-home .step-num{
-    font-family: var(--font-mono);
-    font-size: 22px;
-    color: var(--accent-text);
-    letter-spacing: 0.04em;
-    padding-left: 18px;
-  }
-  #ph-home .step h3{ font-size: 17.5px; font-weight: 700; }
-  #ph-home .step p{ color: var(--ink-2); font-size: 14.5px; line-height: 1.8; margin-top: 6px; max-width: 44ch; }
-  #ph-home .step .mono{ color: var(--ink-3); font-size: 12px; display: block; margin-top: 8px; }
-
-  /* --- Closing CTA: night band, day version in light mode ---------------- */
-  #ph-home .endcta{ position: relative; overflow: hidden; border-top: 1px solid var(--line); background: var(--bg-2); }
-  #ph-home .endcta img{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  #ph-home .endcta .scrim{ position: absolute; inset: 0; background: var(--scrim); }
-  #ph-home .endcta-in{
-    position: relative;
-    min-height: min(56vh, calc(100vw / 1.79));
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-  #ph-home .endcta-copy{ width: min(46%, 560px); padding: 56px var(--pad-x) 56px 0; }
-  #ph-home .endcta h2{ font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 3.1vw, 42px); line-height: 1.18; letter-spacing: -0.015em; }
-  #ph-home .endcta p{ margin-top: 14px; color: var(--ink-2); font-size: 15.5px; line-height: 1.8; max-width: 36ch; }
-  #ph-home .endcta .hero-ctas{ margin-top: 24px; }
-
-  /* --- Footer ------------------------------------------------------------ */
-  #ph-home .foot{ border-top: 1px solid var(--line); padding: 54px 0 34px; }
-  #ph-home .foot-grid{
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 0.7fr));
-    gap: 32px;
-  }
-  #ph-home .foot h4{
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    letter-spacing: 0.12em;
-    color: var(--ink-3);
-    font-weight: 400;
-    margin-bottom: 14px;
-  }
-  #ph-home .foot ul{ list-style: none; margin: 0; padding: 0; }
-  #ph-home .foot li{ margin-bottom: 10px; }
-  #ph-home .foot a{ color: var(--ink-2); font-size: 14px; }
-  #ph-home .foot a:hover{ color: var(--accent-text); }
-  #ph-home .foot-brand{ display: flex; align-items: center; gap: 12px; }
-  #ph-home .foot-brand .brand-mark{ width: 18px; height: 18px; box-shadow: inset 0 0 0 5px var(--bg); }
-  #ph-home .foot-brand b{ font-family: var(--font-mono); font-size: 17px; letter-spacing: 0.06em; font-weight: 400; }
-  #ph-home .foot-about{ margin-top: 14px; color: var(--ink-2); font-size: 14px; max-width: 34ch; line-height: 1.8; }
-  #ph-home .foot-legal{
-    margin-top: 44px;
-    padding-top: 20px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-3);
-  }
-  /* Bottom line legal links: small text, sitting on the copyright row. */
-  #ph-home .foot-links{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-    margin-left: auto;
-  }
-  #ph-home .foot-links a{
-    color: var(--ink-2);
-    border-bottom: 1px solid transparent;
-    transition: color 0.16s linear, border-color 0.16s linear;
-  }
-  #ph-home .foot-links a:hover,
-  #ph-home .foot-links a:focus-visible{
-    color: var(--accent-text);
-    border-bottom-color: var(--accent-line);
-  }
-
-  /* --- Reveal + motion policy ------------------------------------------- */
-  #ph-home.js .rv{ opacity: 0; transform: translateY(16px); transition: opacity 0.62s var(--ease), transform 0.62s var(--ease); transition-delay: var(--d, 0ms); }
-  #ph-home.js .rv.in{ opacity: 1; transform: none; }
-
-  @media (prefers-reduced-motion: reduce){
-    #ph-home{ scroll-behavior: auto; }
-    #ph-home.js .rv{ opacity: 1 !important; transform: none !important; transition: none !important; }
-    #ph-home .ticker-track{ animation: none !important; }
-    #ph-home .led-pulse{ animation: none !important; }
-    #ph-home .log .ln.fresh{ animation: none !important; }
-    #ph-home .btn{ transition: none; }
-    #ph-home .btn:hover, #ph-home .btn:active{ transform: none; }
-    #ph-home *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
-  }
-
-  #ph-home .skip{
-    position: absolute;
-    left: -9999px;
-    top: 0;
-    background: var(--accent);
-    color: var(--accent-ink);
-    padding: 10px 16px;
-    z-index: 70;
-    font-family: var(--font-mono);
-    font-size: 13px;
-  }
-  #ph-home .skip:focus{ left: 8px; top: 8px; }
-
-  /* --- Responsive: every section declares its own collapse -------------- */
-  @media (max-width: 1080px){
-    #ph-home .live-grid, #ph-home .migrate-grid, #ph-home .steps-grid{ grid-template-columns: minmax(0, 1fr); }
-    #ph-home .cell-a, #ph-home .cell-b, #ph-home .cell-c, #ph-home .cell-d, #ph-home .cell-e{ grid-column: span 12; }
-    #ph-home .cell-a{ min-height: 260px; }
-  }
-  @media (max-width: 860px){
-    #ph-home .board-head, #ph-home .board-row{ grid-template-columns: minmax(0, 1.5fr) 78px 80px; }
-    #ph-home .board-head span:nth-child(3), #ph-home .board-row .models{ display: none; }
-    #ph-home .hero-band{ height: min(56vh, calc(100vw / 1.2)); min-height: 320px; }
-    #ph-home .hero-band img{ object-position: 30% center; }
-    #ph-home .hero-scrim{ background: linear-gradient(to top, var(--bg) 4%, rgba(18, 16, 14, 0.5) 46%, rgba(18, 16, 14, 0.15) 100%); }
-    #ph-home[data-theme="light"] .hero-scrim{ background: linear-gradient(to top, var(--bg) 4%, rgba(236, 235, 228, 0.7) 46%, rgba(236, 235, 228, 0.2) 100%); }
-    #ph-home .hero-copy{
-      position: static;
-      width: 100%;
-      padding: 26px var(--pad-x) 0;
-      gap: 18px;
+  /* ============ 窄屏：导航栏落到下方，视窗内部滚动 ============ */
+  @media (max-width:900px){
+    .stage{
+      grid-template-rows:auto minmax(0,1fr) auto auto;
+      grid-template-areas:"top" "view" "rail" "bar";
+      border-radius:clamp(22px,6vw,34px);
+      padding:clamp(10px,3vw,18px) clamp(12px,3.4vw,20px) clamp(6px,2vw,10px);
     }
-    #ph-home .hero-sub{ max-width: 100%; }
-    #ph-home .term-wrap{ margin-top: 26px; }
-    #ph-home .endcta-in{ min-height: 0; justify-content: flex-start; align-items: flex-end; }
-    #ph-home .endcta img{ object-position: 26% center; }
-    #ph-home .endcta .scrim{ background: linear-gradient(to top, var(--bg) 18%, rgba(18, 16, 14, 0.72) 60%, rgba(18, 16, 14, 0.3) 100%); }
-    #ph-home[data-theme="light"] .endcta .scrim{ background: linear-gradient(to top, var(--bg) 18%, rgba(236, 235, 228, 0.86) 60%, rgba(236, 235, 228, 0.4) 100%); }
-    #ph-home .endcta-copy{ width: 100%; padding: 96px var(--pad-x) 40px; }
-    #ph-home .foot-grid{ grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
-    #ph-home .cat-table .col-ctx, #ph-home .cat-table .col-tags{ display: none; }
-    #ph-home .tab{ padding: 10px 12px; font-size: 12px; }
+    .topbar{min-height:56px}
+    .view{padding:6px 0}
+    .rail{
+      position:static;transform:none;flex-direction:row;gap:8px;
+      padding:10px 0 4px;overflow-x:auto;
+    }
+    .rail-btn{padding:8px 12px;font-size:12.5px}
+    .hero{width:100%;max-width:none}
+    .home-top{grid-template-columns:minmax(0,1fr);gap:16px}
+    .view--home{display:flex;flex-direction:column;gap:16px}
+    .view--home>*{flex:none}
+    .home-top{display:flex;flex-direction:column}
+    /* 窄屏场景图退出全幅铺底，回到常规文档流当一块 16:9 banner。
+       整幅铺底在单列布局里会被压成一条，且横向要裁掉一大半角色。
+       这里必须是 relative 而不是 static —— static 会让 .scene::before/::after
+       丢掉定位基准，改去相对 .view--home 定位，渐变会横跨整屏。 */
+    .scene{
+      position:relative;inset:auto;order:-1;
+      height:min(38vh,260px);border-radius:var(--r-card);pointer-events:auto;
+    }
+    /* 窄屏 banner 本来就是清晰的，不需要「模糊氛围底 + 免扣前景层」这套；
+       免扣层直接隐藏（JS 也会因此不下载它，省 260–590KB），场景图恢复原样。 */
+    .scene img{object-position:62% 34%;filter:none;transform:none}
+    .mascot{display:none}
+    /* 窄屏文案在图片下方，底边渐隐没有意义；只留一点点柔和下沿 */
+    .scene::before{background:linear-gradient(180deg,transparent 62%,var(--scene-fade) 100%)}
+    .scene::after{display:none}
+    .chips{justify-content:center}
+    .chip-card--b{margin-top:0}
+    .home-bottom{flex-direction:column;align-items:stretch}
+    .panel{width:100%}
+    .api-grid{grid-template-columns:minmax(0,1fr)}
+    .view--api{grid-template-rows:max-content max-content}
+    .view--skills{grid-template-rows:max-content max-content max-content}
+    .bento{
+      grid-template-columns:minmax(0,1fr);
+      grid-template-rows:repeat(4,max-content);
+      grid-template-areas:"a" "b" "c" "d";
+      align-content:start;
+    }
+    .view--start{grid-template-rows:max-content max-content max-content}
+    .steps{grid-template-columns:minmax(0,1fr);gap:16px;align-content:start}
+    /* 窄屏改由整屏滚动，卡片不再各自内部裁剪，弹性子项也不再被压成 0 高 */
+    .bento .card,.card--endpoints,.term-body{overflow:visible}
+    .model-grid,.regions,.keys{flex:none}
+    .model-grid{grid-template-rows:auto}
+    .regions,.keys{align-content:start}
+    .four{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .step:not(:last-child)::after{display:none}
+    .statusbar{flex-wrap:wrap;gap:6px 10px}
+    .routes{display:flex}
+    .sb-mid{display:none}
   }
-  @media (max-width: 560px){
-    #ph-home .cell{ padding: 20px; }
-    #ph-home .step{ grid-template-columns: 42px minmax(0, 1fr); gap: 14px; }
-    #ph-home .step-num{ font-size: 18px; padding-left: 12px; }
-    #ph-home .cat-table th, #ph-home .cat-table td{ padding: 11px 12px; }
-    #ph-home .cat-table .col-group{ display: none; }
-    #ph-home .log{ font-size: 10.5px; }
-    #ph-home .log .ln.req{ gap: 0 8px; }
-    #ph-home .foot-grid{ grid-template-columns: minmax(0, 1fr); }
-    #ph-home .search{ min-width: 100%; }
+  @media (max-width:640px){
+    .topnav{display:none}
+    .ver{display:none}
+    .topbar{flex-wrap:wrap;row-gap:6px}
+    .char-picker{order:9;flex-basis:100%;justify-content:center;overflow-x:auto;padding-bottom:2px}
+    .char-btn{width:24px;height:32px}
+    .view-head h2{font-size:clamp(1.4rem,6vw,1.9rem)}
+    .four{grid-template-columns:minmax(0,1fr)}
+    .sb-copy{display:none}
+    .statusbar{font-size:11px}
+  }
+  @media (max-width:420px){
+    .rail-btn .num{display:none}
   }
 </style>
-<script>
-  /* Theme + progressive enhancement flag. Runs inside the wrapper, never on
-     document.documentElement, so the host application keeps its own theme.
-     When the host injects this markup with innerHTML no script runs at all:
-     the prefers-color-scheme fallback in the CSS covers that case. */
-  (function () {
-    var home = document.getElementById('ph-home');
-    if (!home) { return; }
-    home.classList.add('js');
-    var picked = null;
-    try { picked = localStorage.getItem('paolu-theme'); } catch (e) { picked = null; }
-    if (picked !== 'dark' && picked !== 'light') {
-      picked = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
-    home.setAttribute('data-theme', picked);
-  })();
-</script>
-<a class="skip" href="#ph-main">跳到主要内容</a>
-<div class="crt" aria-hidden="true"></div>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"><img src="assets/bg.jpg" alt=""></div>
 
+  <div class="stage">
+    <svg class="squiggle" viewBox="0 0 600 420" fill="none" aria-hidden="true">
+      <path d="M18 34C180 26 320 60 372 128c34 45 22 92-24 106-44 13-79-12-70-46 8-32 46-45 84-33 66 21 92 96 56 168-22 44-70 74-126 78" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M430 26c46 22 84 58 108 104" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
 
-<main id="ph-main">
-  <!-- ===================== SERVICE NOTICE ===================== -->
-  <aside class="notice" role="note" aria-label="服务范围提醒">
-    <div class="wrap notice-in">
-      <span class="notice-mark mono" aria-hidden="true">i</span>
-      <div class="notice-body">
-        <p class="notice-title">给予中国大陆用户的提醒</p>
-        <p class="notice-text">根据中国大陆的法律法规限制，本站不为来自中国大陆的用户提供任何大模型服务，请来自中国大陆的用户自觉停止访问本站</p>
+    <!-- 站点域名：换域名时全局替换 https://paoluapi.xyz 即可（页内 #锚点 不要动） -->
+    <div class="topbar" role="banner">
+      <a class="brand" href="https://paoluapi.xyz/" aria-label="Paolu API 首页">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">Paolu<em>API</em></span>
+        <span class="ver">v1.0.0-rc.41</span>
+      </a>
+      <nav class="topnav" aria-label="站点导航">
+        <a href="https://paoluapi.xyz/" aria-current="page">主页</a>
+        <a href="https://paoluapi.xyz/console">控制台</a>
+        <a href="https://paoluapi.xyz/pricing">模型广场</a>
+        <a href="https://paoluapi.xyz/docs">文档</a>
+      </nav>
+      <div class="char-picker" role="group" aria-label="选择看板娘角色与配色">
+        <button class="char-btn" type="button" data-char="gpt" aria-pressed="true" title="GPT · 大白龙"><img src="assets/chars/01-gpt-thumb.webp" alt="GPT · 大白龙" width="120" height="160" loading="lazy" decoding="async"></button>
+        <button class="char-btn" type="button" data-char="claude" aria-pressed="false" title="Claude · 小克"><img src="assets/chars/02-claude-thumb.webp" alt="Claude · 小克" width="120" height="160" loading="lazy" decoding="async"></button>
+        <button class="char-btn" type="button" data-char="deepseek" aria-pressed="false" title="DeepSeek · 大肥鱼"><img src="assets/chars/03-deepseek-thumb.webp" alt="DeepSeek · 大肥鱼" width="120" height="160" loading="lazy" decoding="async"></button>
+        <button class="char-btn" type="button" data-char="gemini" aria-pressed="false" title="Gemini · 猫猫"><img src="assets/chars/04-gemini-thumb.webp" alt="Gemini · 猫猫" width="120" height="160" loading="lazy" decoding="async"></button>
+        <button class="char-btn" type="button" data-char="glm" aria-pressed="false" title="GLM · 坏狐狸"><img src="assets/chars/05-glm-thumb.webp" alt="GLM · 坏狐狸" width="120" height="160" loading="lazy" decoding="async"></button>
+        <button class="char-btn" type="button" data-char="grok" aria-pressed="false" title="Grok · 大小姐"><img src="assets/chars/06-grok-thumb.webp" alt="Grok · 大小姐" width="120" height="160" loading="lazy" decoding="async"></button>
       </div>
-      <button class="theme-btn js-only" id="ph-theme" type="button" aria-pressed="false" aria-label="切换夜间与日间主题" title="切换夜间与日间主题">
-        <span class="knob" aria-hidden="true"></span>
-        <span class="t-label" id="ph-theme-label">夜间</span>
-      </button>
-    </div>
-  </aside>
-
-  <!-- ===================== HERO ===================== -->
-  <section class="hero" id="ph-top">
-    <div class="hero-band">
-      <img src="new-api-assets/img/tavern-hero.jpg" alt="像素风格的酒馆吧台：木质台面上排列着啤酒龙头，背后是亮着琥珀色指示灯的机架服务器" width="1584" height="672" fetchpriority="high" decoding="async" />
-      <div class="hero-scrim" aria-hidden="true"></div>
-    </div>
-    <div class="hero-copy">
-      <h1>一个 <span class="mono">API</span>，接入全球主流模型</h1>
-      <p class="hero-sub">21 个模型、7 个计费分组，按量扣减。迁移只替换 Base URL，业务代码不用改。</p>
-      <div class="hero-ctas">
-        <a class="btn" href="https://paoluapi.xyz/console">进入控制台</a>
-        <a class="btn btn-ghost" href="https://paoluapi.xyz/pricing">查看价格</a>
+      <div class="actions">
+        <button class="ghost-btn" id="themeToggle" type="button" aria-pressed="false" aria-label="切换到深色主题">深色</button>
+        <a class="ghost-btn" href="https://paoluapi.xyz/console">通知</a>
+        <a class="avatar" href="https://paoluapi.xyz/login" title="登录 / 注册" aria-label="登录 / 注册">P</a>
       </div>
     </div>
-  </section>
 
-  <!-- ===================== LIVE GATEWAY TERMINAL ===================== -->
-  <aside class="term-wrap" aria-label="网关请求日志演示">
-    <div class="wrap">
-      <div class="panel term">
-        <div class="panel-bar">
-          <span class="led led-pulse" aria-hidden="true"></span>
-          <span>gateway.log</span>
-          <span class="grow"></span>
-          <span id="ph-term-status">7 个分组可用</span>
-          <button class="btn btn-ghost btn-sm js-only" id="ph-term-pause" type="button" aria-pressed="false">暂停</button>
+    <div class="viewport">
+      <!-- ========== 01 概览 ========== -->
+      <section class="view view--home" id="overview" aria-labelledby="ov-title">
+        <!-- 看板娘：两层同构图素材（HD 免扣图 2752x1536 / 场景图 1376x768，同构图同比例）。
+             .scene  = 氛围底，场景图模糊放大后当环境色雾，左侧由 .scene::after
+                       压色层托住文案对比度；
+             .mascot = 本体，assets/chars 免扣图清晰直出，压在压色层之上、
+                       文案卡片之下，所以她是「站出来的看板娘」而不是壁纸纹理。
+             两层 src 都由图末的 setChar() 换。alt 挂在 .scene 上（窄屏它是唯一的
+             可见插画），.mascot 是同一幅画的装饰性副本，故 aria-hidden + 空 alt。
+             用 <img> 不用 CSS background 是为了拿到 fetchpriority/decoding，
+             也方便没有 CSS 时仍有内容。 -->
+        <div class="scene">
+          <img id="sceneImg" src="assets/scenes/01-gpt.webp" width="1376" height="768"
+               fetchpriority="high" decoding="async"
+               alt="GPT 小姐 · 大白龙：白发紫眸的龙娘，浅色的角，白色长裙，紫白色的翼与尾巴">
         </div>
-        <div class="term-body">
-          <div class="log" id="ph-term-body" role="log" aria-live="off" aria-label="网关请求日志">
-            <span class="ln ok req"><span class="t">[12:04:11]</span><span class="m">gpt-5.6-sol</span><span class="g">Codex</span><span class="d">412ms</span><span class="s">ok</span></span>
-            <span class="ln ok req"><span class="t">[12:04:11]</span><span class="m">claude-opus-4-8</span><span class="g">Claude</span><span class="d">596ms</span><span class="s">ok</span></span>
-            <span class="ln ok req"><span class="t">[12:04:12]</span><span class="m">kimi-k3</span><span class="g">KIMI</span><span class="d">738ms</span><span class="s">ok</span></span>
-            <span class="ln warn msg"><span class="t">[12:04:12]</span><span class="tag-warn">warn</span><span class="x">Claude 响应变慢，已降低权重</span></span>
-            <span class="ln ok req"><span class="t">[12:04:13]</span><span class="m">glm-5.3-flash</span><span class="g">GLM</span><span class="d">366ms</span><span class="s">ok</span></span>
-            <span class="ln err msg"><span class="t">[12:04:13]</span><span class="tag">err</span><span class="x">Luna 上游返回 502，已切换</span></span>
-            <span class="ln ok req"><span class="t">[12:04:14]</span><span class="m">qwen3.8-max</span><span class="g">Qwen</span><span class="d">448ms</span><span class="s">ok</span></span>
-            <span class="ln ok req"><span class="t">[12:04:14]</span><span class="m">claude-fable-5</span><span class="g">Claude</span><span class="d">505ms</span><span class="s">ok</span></span>
-            <span class="ln ok req"><span class="t">[12:04:15]</span><span class="m">gpt-5.6-terra</span><span class="g">Codex</span><span class="d">288ms</span><span class="s">ok</span></span>
-          </div>
+        <div class="mascot" aria-hidden="true">
+          <!-- src 故意留成 1×1 透明占位：窄屏 .mascot 是 display:none，若这里写死
+               免扣图路径，手机端会白白下载 260–590KB（display:none 不阻止取图）。
+               真正的 src 由图末 paintChar() 在宽视口下挂上。 -->
+          <img id="mascotImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+               width="2752" height="1536" fetchpriority="high" decoding="async" alt="">
         </div>
-        <div class="term-foot">
-          <span>演示数据</span>
-          <span>接口 <b>POST /v1/chat/completions</b></span>
-          <span>分组 <b>7</b></span>
-          <span>模型 <b>21</b></span>
-        </div>
-      </div>
-      <div class="term-legend">
-        <span>模型名与分组取自站点目录</span>
-        <span>延迟为示意数值</span>
-        <span>分组倍率见价格页</span>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ===================== COMPATIBILITY TICKER ===================== -->
-  <section class="compat" id="ph-compat" aria-label="兼容的客户端与 SDK">
-    <div class="wrap">
-      <p class="compat-label">以下客户端可以直接导入配置，不用手抄地址和 Key</p>
-    </div>
-    <div class="ticker">
-      <div class="ticker-track">
-        <div class="ticker-set">
-          <span>OpenAI 兼容接口</span><i aria-hidden="true"></i>
-          <span>Cherry Studio</span><i aria-hidden="true"></i>
-          <span>AionUI</span><i aria-hidden="true"></i>
-          <span>CC Switch</span><i aria-hidden="true"></i>
-          <span>DeepChat</span><i aria-hidden="true"></i>
-          <span>AQBot</span><i aria-hidden="true"></i>
-          <span>Lobe Chat</span><i aria-hidden="true"></i>
-          <span>AI as Workspace</span><i aria-hidden="true"></i>
-          <span>AMA 问天</span><i aria-hidden="true"></i>
-          <span>OpenCat</span><i aria-hidden="true"></i>
-          <span>流畅阅读</span><i aria-hidden="true"></i>
-          <span>OpenAI SDK</span><i aria-hidden="true"></i>
-        </div>
-        <div class="ticker-set" aria-hidden="true">
-          <span>OpenAI 兼容接口</span><i></i>
-          <span>Cherry Studio</span><i></i>
-          <span>AionUI</span><i></i>
-          <span>CC Switch</span><i></i>
-          <span>DeepChat</span><i></i>
-          <span>AQBot</span><i></i>
-          <span>Lobe Chat</span><i></i>
-          <span>AI as Workspace</span><i></i>
-          <span>AMA 问天</span><i></i>
-          <span>OpenCat</span><i></i>
-          <span>流畅阅读</span><i></i>
-          <span>OpenAI SDK</span><i></i>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== GROUP RATES ===================== -->
-  <section class="sec" id="ph-lines">
-    <div class="wrap live-grid">
-      <div class="rv">
-        <p class="kicker">计费分组</p>
-        <h2 class="h2">7 个分组，倍率公开</h2>
-        <p class="lede">站点按分组计费。同一个模型在不同分组下按该分组的倍率折算，21 个模型覆盖 7 个分组，当前全部可用。</p>
-        <p class="note" style="margin-top:18px">数据取自站点价格页，最终扣费以控制台账单为准</p>
-      </div>
-      <div class="panel board rv" style="--d:120ms" >
-        <div class="board-head">
-          <span>分组</span>
-          <span>倍率</span>
-          <span>模型</span>
-          <span>状态</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>Claude<small>Anthropic 系模型</small></span>
-          <span class="val">0.08x</span>
-          <span class="val models">5</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>Codex<small>OpenAI 系模型</small></span>
-          <span class="val">0.08x</span>
-          <span class="val models">5</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>KIMI<small>月之暗面</small></span>
-          <span class="val">0.20x</span>
-          <span class="val models">1</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>GLM<small>智谱系模型</small></span>
-          <span class="val">0.30x</span>
-          <span class="val models">4</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>Qwen<small>通义系模型</small></span>
-          <span class="val">0.30x</span>
-          <span class="val models">2</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>Deepseek<small>DeepSeek 系模型</small></span>
-          <span class="val">0.40x</span>
-          <span class="val models">2</span>
-          <span class="state">可用</span>
-        </div>
-        <div class="board-row">
-          <span class="line-name"><span class="led" aria-hidden="true"></span>Luna<small>高吞吐档位</small></span>
-          <span class="val">1.00x</span>
-          <span class="val models">2</span>
-          <span class="state">可用</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== BENTO FEATURES ===================== -->
-  <section class="sec sec-line" id="ph-features">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <h2 class="h2">网关该做的事，一件都不少</h2>
-        <p class="lede">路由、容灾、额度、日志、部署，都在同一个控制台里，不需要再拼第三方的胶水脚本。</p>
-      </div>
-
-      <div class="bento">
-        <article class="cell cell-a cell-photo rv">
-          <img src="new-api-assets/img/cat-on-racks.jpg" alt="像素画：一只长毛猫睡在堆叠的服务器机箱上，机箱面板亮着琥珀色指示灯" width="1024" height="1024" loading="lazy" decoding="async" />
-          <div class="photo-copy">
-            <h3>自动容灾</h3>
-            <p>上游返回错误或超时，网关立刻换线重试。调用方看到的只是一次正常返回，不需要自己写重试逻辑。</p>
-          </div>
-        </article>
-
-        <article class="cell cell-b rv" style="--d:80ms">
-          <h3>智能路由</h3>
-          <p>按延迟、错误率、余额和权重排序候选线路，模型名保持不变。</p>
-          <pre class="diagram" aria-label="路由示意图">            |- line A   412ms
-request --> route
-            |- line B   596ms
-            `- line C   738ms</pre>
-        </article>
-
-        <article class="cell cell-c rv">
-          <h3>额度与权限</h3>
-          <p>每把 Key 单独设置计费分组、可用模型与速率限制。</p>
-          <div class="kv">
-            <div><span>Key</span><span>sk-...9f2c</span></div>
-            <div><span>计费分组</span><span>Claude</span></div>
-            <div><span>额度</span><span>按量扣减</span></div>
-            <div><span>速率限制</span><span>可自定义</span></div>
-          </div>
-        </article>
-
-        <article class="cell cell-d rv" style="--d:80ms">
-          <h3>用量与日志</h3>
-          <p>每次调用都有记录，按小时聚合并可导出。</p>
-          <div class="spark" aria-hidden="true" title="用量图表示意">
-            <i style="height:34%"></i><i style="height:52%"></i><i style="height:41%"></i><i style="height:68%"></i>
-            <i style="height:57%"></i><i style="height:82%"></i><i style="height:63%"></i><i style="height:95%"></i>
-            <i class="dim" style="height:22%"></i><i style="height:74%"></i><i style="height:58%"></i><i style="height:88%"></i>
-            <i style="height:47%"></i><i style="height:66%"></i>
-          </div>
-          <div class="metrics">
-            <span>按小时聚合</span>
-            <span>导出 CSV</span>
-            <span>按 Key 筛选</span>
-          </div>
-        </article>
-
-        <article class="cell cell-e rv" style="--d:160ms">
-          <h3>客户端一键导入</h3>
-          <p>Cherry Studio、OpenCat、Lobe Chat、DeepChat 等可以直接导入配置。</p>
-          <div class="snippet"><span>https://paoluapi.xyz/v1</span><span>Base URL</span></div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== MIGRATION ===================== -->
-  <section class="sec sec-line" id="ph-migrate">
-    <div class="wrap migrate-grid">
-      <div class="rv">
-        <h2 class="h2">迁移只需替换<br />Base URL</h2>
-        <p class="lede">接口、参数、返回结构都与 OpenAI 规范一致。现有 SDK、框架和客户端不用改造，改一行地址就能切过来。</p>
-        <p class="note" style="margin-top:18px">接口路径 POST /v1/chat/completions，与 OpenAI 规范一致</p>
-      </div>
-
-      <div class="panel rv" style="--d:120ms">
-        <div class="panel-bar js-only">
-          <div class="tabs" style="border:0;flex:1 1 auto" role="tablist" aria-label="接入示例">
-            <button class="tab" id="ph-tab-node" type="button" role="tab" aria-selected="true" aria-controls="ph-pane-node">Node.js</button>
-            <button class="tab" id="ph-tab-py" type="button" role="tab" aria-selected="false" aria-controls="ph-pane-py">Python</button>
-            <button class="tab" id="ph-tab-curl" type="button" role="tab" aria-selected="false" aria-controls="ph-pane-curl">cURL</button>
-          </div>
-        </div>
-        <div class="code-body">
-          <div class="code-pane on" id="ph-pane-node" role="tabpanel" aria-labelledby="ph-tab-node">
-            <pre class="code" id="ph-code-node"><span class="rowline cm">// 之前</span>
-<span class="rowline old">const client = new OpenAI({</span>
-<span class="rowline old">  baseURL: 'https://api.openai.com/v1',</span>
-<span class="rowline old">  apiKey: process.env.OPENAI_API_KEY</span>
-<span class="rowline old">})</span>
-
-<span class="rowline cm">// 之后</span>
-<span class="rowline new">const client = new OpenAI({</span>
-<span class="rowline new">  baseURL: 'https://paoluapi.xyz/v1',</span>
-<span class="rowline new">  apiKey: process.env.PAOLU_API_KEY</span>
-<span class="rowline new">})</span>
-
-<span class="rowline">const reply = await client.chat.completions.create({</span>
-<span class="rowline">  model: <span class="st">'claude-opus-4-8'</span>,</span>
-<span class="rowline">  messages</span>
-<span class="rowline">})</span></pre>
-          </div>
-          <div class="code-pane" id="ph-pane-py" role="tabpanel" aria-labelledby="ph-tab-py">
-            <pre class="code" id="ph-code-py"><span class="rowline cm"># 之前</span>
-<span class="rowline old">client = OpenAI(</span>
-<span class="rowline old">    base_url="https://api.openai.com/v1",</span>
-<span class="rowline old">    api_key=os.environ["OPENAI_API_KEY"],</span>
-<span class="rowline old">)</span>
-
-<span class="rowline cm"># 之后</span>
-<span class="rowline new">client = OpenAI(</span>
-<span class="rowline new">    base_url="https://paoluapi.xyz/v1",</span>
-<span class="rowline new">    api_key=os.environ["PAOLU_API_KEY"],</span>
-<span class="rowline new">)</span>
-
-<span class="rowline">reply = client.chat.completions.create(</span>
-<span class="rowline">    model=<span class="st">"gpt-5.6-sol"</span>,</span>
-<span class="rowline">    messages=messages,</span>
-<span class="rowline">)</span></pre>
-          </div>
-          <div class="code-pane" id="ph-pane-curl" role="tabpanel" aria-labelledby="ph-tab-curl">
-            <pre class="code" id="ph-code-curl"><span class="rowline cm"># 之前</span>
-<span class="rowline old">curl https://api.openai.com/v1/chat/completions \</span>
-<span class="rowline old">  -H "Authorization: Bearer $OPENAI_API_KEY" \</span>
-
-<span class="rowline cm"># 之后</span>
-<span class="rowline new">curl https://paoluapi.xyz/v1/chat/completions \</span>
-<span class="rowline new">  -H "Authorization: Bearer $PAOLU_API_KEY" \</span>
-
-<span class="rowline">  -H "Content-Type: application/json" \</span>
-<span class="rowline">  -d '{"model":"kimi-k3","messages":[...]}'</span></pre>
+        <div class="home-top">
+          <div class="hero">
+            <p class="tag">人工智能应用基座</p>
+            <h1 class="hero-title" id="ov-title" tabindex="-1">统一 API 网关，服务于<span class="hl">海量 AI 模型</span></h1>
+            <p class="hero-sub">通过统一、标准的接口协议接入海量模型。承载 AI 应用，高效管理数字资产，连接未来。</p>
+            <div class="hero-cta">
+              <a class="btn" href="https://paoluapi.xyz/console"><span>前往仪表板</span><span class="btn-arrow" aria-hidden="true"></span></a>
+              <a class="btn" href="https://paoluapi.xyz/docs"><span>文档</span><span class="btn-arrow" aria-hidden="true"></span></a>
+            </div>
           </div>
 
-          <div class="copy-row js-only">
-            <button class="btn btn-ghost btn-sm" id="ph-copy" type="button">复制当前示例</button>
-            <span class="copied" id="ph-copy-msg" role="status">已复制到剪贴板</span>
-          </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- ===================== MODEL CATALOG ===================== -->
-  <section class="sec sec-line" id="ph-models">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <p class="kicker">模型目录</p>
-        <h2 class="h2">一个 Key，调用所有模型</h2>
-        <p class="lede">目录随上游更新。新增模型不需要重新申请账号，也不用更换 Key。</p>
-      </div>
-
-      <div class="cat-tools js-only rv">
-        <label class="search">
-          <span class="mono" aria-hidden="true">查找</span>
-          <input id="ph-search" type="search" placeholder="输入模型名，例如 claude 或 flash" aria-label="搜索模型" autocomplete="off" />
-        </label>
-        <div class="chip-group">
-          <span class="chip-label mono">供应商</span>
-          <div class="chips" role="group" aria-label="按供应商筛选">
-            <button class="chip" type="button" aria-pressed="true" data-vendor="all">全部</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="OpenAI">OpenAI</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="Anthropic">Anthropic</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="Z.AI">Z.AI</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="DeepSeek">DeepSeek</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="Alibaba">Alibaba</button>
-            <button class="chip" type="button" aria-pressed="false" data-vendor="Moonshot AI">Moonshot AI</button>
+        <div class="home-bottom">
+          <article class="panel">
+            <p class="panel-kicker">支持一键配置并完美适配 NewAPI 多协议配置</p>
+            <p class="panel-word">常用应用支持</p>
+            <ul class="clients-inline">
+              <li>Cherry Studio</li>
+              <li>CC Switch</li>
+              <li>AionUI</li>
+              <li>流畅阅读</li>
+              <li>DeepChat</li>
+              <li>AQBot</li>
+              <li>Lobe Chat 官方示例</li>
+              <li>AI as Workspace</li>
+              <li>AMA 问天</li>
+              <li>OpenCat</li>
+            </ul>
+          </article>
+          <div class="chips">
+            <a class="chip-card" href="#features"><b data-count="50" data-suffix="+">50+</b><small>上游服务适配</small></a>
+            <a class="chip-card chip-card--b" href="#features"><b data-count="100" data-suffix="+">100+</b><small>模型计费支持</small></a>
           </div>
+          <article class="panel">
+            <p class="panel-kicker">配置 · 连接 · 监控</p>
+            <p class="panel-word">三步上手</p>
+            <ul class="clients">
+              <li>添加密钥</li>
+              <li>接入路由</li>
+              <li>查看用量</li>
+            </ul>
+            <a class="btn" href="#workflow"><span>查看流程</span><span class="btn-arrow" aria-hidden="true"></span></a>
+          </article>
         </div>
-        <div class="chip-group">
-          <span class="chip-label mono">分组</span>
-          <div class="chips" role="group" aria-label="按分组筛选">
-            <button class="chip" type="button" aria-pressed="true" data-group="all">全部</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="Claude">Claude</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="Codex">Codex</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="GLM">GLM</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="Qwen">Qwen</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="KIMI">KIMI</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="Deepseek">Deepseek</button>
-            <button class="chip" type="button" aria-pressed="false" data-group="Luna">Luna</button>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <div class="cat-table rv" style="--d:100ms">
-        <table>
-          <caption class="note" style="text-align:left;padding:12px 16px">模型与分组取自站点目录，单价按模型与用量分档计算，完整价格见价格页</caption>
-          <thead>
-            <tr>
-              <th scope="col">模型</th>
-              <th scope="col" class="col-vendor">供应商</th>
-              <th scope="col" class="col-ctx">上下文</th>
-              <th scope="col" class="col-tags">能力</th>
-              <th scope="col" class="col-group">分组</th>
-            </tr>
-          </thead>
-          <tbody id="ph-model-rows">
-            <tr data-name="gpt-5.6-sol" data-vendor="OpenAI" data-groups="default Codex" title="前沿 GPT-5.6 模型，面向复杂专业工作、编程与智能体工作流"><td class="m"><span>gpt-5.6-sol</span></td><td>OpenAI</td><td class="num col-ctx">1.1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Codex</td></tr>
-            <tr data-name="claude-opus-4-8" data-vendor="Anthropic" data-groups="default Claude" title="顶级 Claude Opus 档位，面向最高难度的推理、编程与长程智能体"><td class="m"><span>claude-opus-4-8</span></td><td>Anthropic</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Claude</td></tr>
-            <tr data-name="gpt-6-astra" data-vendor="OpenAI" data-groups="default Codex" title="GPT-6 Astra 是 OpenAI 能力最强的模型，面向复杂推理、编程、计算机操作、研究与文档创作。"><td class="m"><span>gpt-6-astra</span></td><td>OpenAI</td><td class="num col-ctx">1.1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Codex</td></tr>
-            <tr data-name="claude-opus-5-5" data-vendor="Anthropic" data-groups="default Claude" title="面向长程智能体编程与知识工作的 Claude 档位"><td class="m"><span>claude-opus-5-5</span></td><td>Anthropic</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Claude</td></tr>
-            <tr data-name="kimi-k3" data-vendor="Moonshot AI" data-groups="default KIMI" title="多模态 Kimi 模型，具备 100 万 token 上下文与可切换的最高强度思考模式"><td class="m"><span>kimi-k3</span></td><td>Moonshot AI</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 开源权重 多模态</td><td class="num col-group">KIMI</td></tr>
-            <tr data-name="qwen3.8-max" data-vendor="Alibaba" data-groups="default Qwen" title="2.4 万亿参数的 MoE 旗舰模型，面向编程、专业工作、多模态理解与长程智能体工作流"><td class="m"><span>qwen3.8-max</span></td><td>Alibaba</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Qwen</td></tr>
-            <tr data-name="gpt-5.6-terra" data-vendor="OpenAI" data-groups="default Codex" title="能力与成本兼顾的均衡型 GPT-5.6，适合日常工作"><td class="m"><span>gpt-5.6-terra</span></td><td>OpenAI</td><td class="num col-ctx">1.1M</td><td class="tags col-tags">推理 工具 多模态</td><td class="num col-group">Codex</td></tr>
-            <tr data-name="glm-5.3-flash" data-vendor="Z.AI" data-groups="default GLM" title="原生多模态 GLM 模型，面向高效编程与长程智能体任务"><td class="m"><span>glm-5.3-flash</span></td><td>Z.AI</td><td class="num col-ctx">1M</td><td class="tags col-tags">推理 开源权重 多模态</td><td class="num col-group">GLM</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="empty" id="ph-model-empty">
-        <span class="mono">没有匹配的模型</span>
-        换一个关键词，或者把筛选切回全部。
-      </div>
+      <!-- ========== 02 接口 ========== -->
+      <section class="view view--api" id="protocol" aria-labelledby="api-title">
+        <header class="view-head">
+          <h2 id="api-title" tabindex="-1">一个端点，接入全部协议</h2>
+          <p class="view-sub">OpenAI 兼容与 Gemini 原生两条路由共用同一个站点令牌，按量计费，无需改动业务代码。</p>
+        </header>
+        <div class="api-grid">
+          <article class="card card--endpoints">
+            <p class="card-title">端点</p>
+            <dl>
+              <div class="kv"><dt>OpenAI 兼容</dt><dd>POST /v1/chat/completions</dd></div>
+              <div class="kv"><dt>请求头</dt><dd>Authorization: Bearer sk-••••</dd></div>
+              <div class="kv"><dt>Gemini 原生</dt><dd>POST /v1beta/models/{model}:generateContent</dd></div>
+              <div class="kv"><dt>请求头</dt><dd>x-goog-api-key: sk-••••</dd></div>
+              <div class="kv"><dt>鉴权</dt><dd>站点令牌，按量计费</dd></div>
+            </dl>
+            <p class="note">把站点地址作为 base_url 替换进现有客户端即可迁移，无需改动业务代码。</p>
+          </article>
 
-      <div class="cat-foot">
-        <p class="note" id="ph-model-count">以下为部分模型，完整目录共 21 个</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm js-only" id="ph-more" type="button" aria-expanded="false">展开全部</button>
-          <a class="btn btn-ghost btn-sm" href="https://paoluapi.xyz/pricing">查看价格</a>
+          <article class="term">
+            <div class="term-bar">
+              <span class="tabs">
+                <span class="tab">Chat</span>
+                <span class="tab">Responses</span>
+                <span class="tab">Claude</span>
+                <span class="tab is-on">Gemini</span>
+              </span>
+              <span class="term-status">200 OK</span>
+            </div>
+            <div class="term-body" tabindex="0" role="group" aria-label="Gemini 原生端点请求与响应示例">
+              <p class="term-path"><span class="m">POST</span>/v1beta/models/{model}:generateContent</p>
+              <p class="term-label">REQUEST</p>
+              <pre class="code">curl -X POST "/v1beta/models/{model}:generateContent" \
+  <span class="k">-H</span> "x-goog-api-key: sk-••••" \
+  <span class="k">-d</span> '{
+    <span class="k">"contents"</span>: [
+      { <span class="k">"role"</span>: "user",
+        <span class="k">"parts"</span>: [{ <span class="k">"text"</span>: "..." }] }
+    ]
+  }'</pre>
+              <p class="term-label">RESPONSE</p>
+              <pre class="code">{
+  <span class="k">"candidates"</span>: [{
+    <span class="k">"content"</span>: { <span class="k">"parts"</span>: [{ <span class="k">"text"</span>: "Gemini request served." }] }
+  }],
+  <span class="k">"usageMetadata"</span>: { <span class="k">"totalTokenCount"</span>: 25 }
+}<span class="caret" aria-hidden="true"></span></pre>
+              <p class="term-foot"><span>93 MS · 25 TOKENS · COST $0.00075</span><span>STREAM · SSE</span></p>
+            </div>
+          </article>
         </div>
-      </div>
-      <p class="note" style="margin-top:14px">模型与分组数量随上游更新，以控制台目录为准</p>
-    </div>
-  </section>
+      </section>
 
-  <!-- ===================== QUICK START ===================== -->
-  <section class="sec sec-line" id="ph-start">
-    <div class="wrap steps-grid">
-      <div class="rv">
-        <h2 class="h2">三步接入</h2>
-        <p class="lede">账号开通后，跑通第一条请求只需要三步。不用为每家上游单独开户，也不用签长期合约。</p>
-      </div>
-      <div class="rail rv" style="--d:120ms">
-        <div class="step">
-          <span class="step-num">01</span>
-          <div>
-            <h3>登录控制台</h3>
-            <p>用邮箱和密码登录，首次登录需要完成邮箱验证。</p>
-            <span class="mono">入口 /login</span>
-          </div>
-        </div>
-        <div class="step">
-          <span class="step-num">02</span>
-          <div>
-            <h3>准备额度</h3>
-            <p>充值或每日签到领取额度，一份额度覆盖全部模型。</p>
-            <span class="mono">支持每日签到</span>
-          </div>
-        </div>
-        <div class="step">
-          <span class="step-num">03</span>
-          <div>
-            <h3>生成 API Key</h3>
-            <p>选定分组与可用模型，把地址和 Key 填进现有配置。</p>
-            <span class="mono">base_url = https://paoluapi.xyz/v1</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+      <!-- ========== 03 能力 ========== -->
+      <section class="view view--skills" id="features" aria-labelledby="skills-title">
+        <header class="view-head">
+          <h2 id="skills-title" tabindex="-1">为开发者打造，<span class="hl">为规模而设计</span></h2>
+        </header>
 
-  <!-- ===================== ACCESS INFO ===================== -->
-  <section class="sec sec-line" id="ph-pricing">
-    <div class="wrap migrate-grid">
-      <div class="rv">
-        <h2 class="h2">计费与接入信息</h2>
-        <p class="lede">一份额度覆盖全部模型，按实际用量扣减，没有订阅费。下面是可以直接抄走的接入参数。</p>
-        <p class="note" style="margin-top:18px">分组倍率与单价见站点价格页</p>
-      </div>
-      <div class="panel rv" style="--d:120px">
-        <div class="panel-bar">
-          <span class="led" aria-hidden="true"></span>
-          <span>接入信息</span>
+        <div class="bento">
+          <article class="card b-a">
+            <div class="card-head"><span class="idx">[01]</span><h3>极速</h3></div>
+            <p>优化的网络架构，确保毫秒级响应时间。</p>
+            <div class="model-grid">
+              <span>OpenAI</span><span>Claude</span><span>Gemini</span>
+              <span>DeepSeek</span><span>Qwen</span><span>Llama</span>
+            </div>
+          </article>
+          <article class="card b-b">
+            <div class="card-head"><span class="idx">[02]</span><h3>安全可靠</h3></div>
+            <p>企业级安全性，提供全面的权限管理。</p>
+            <div class="switch">
+              <span class="switch-track" aria-hidden="true"></span>
+              <small>权限已按渠道隔离</small>
+            </div>
+          </article>
+          <article class="card b-c">
+            <div class="card-head"><span class="idx">[03]</span><h3>全球覆盖</h3></div>
+            <p>多区域部署，实现稳定的全球访问。</p>
+            <ul class="regions">
+              <li><span class="n">1</span>负载均衡<span class="rule"></span></li>
+              <li><span class="n">2</span>速率限制<span class="rule"></span></li>
+              <li><span class="n">3</span>成本跟踪<span class="rule"></span></li>
+            </ul>
+          </article>
+          <article class="card b-d">
+            <div class="card-head"><span class="idx">[04]</span><h3>开发者友好</h3></div>
+            <p>兼容常见 AI 应用工作流的 API 路由。</p>
+            <ul class="keys">
+              <li>API</li><li>SDK</li><li>CLI</li><li>Docs</li><li>&lt;&gt; 兼容多协议</li>
+            </ul>
+          </article>
         </div>
-        <div class="code-body">
-          <div class="kv">
-            <div><span>接口地址</span><span>https://paoluapi.xyz/v1</span></div>
-            <div><span>接入协议</span><span>OpenAI 兼容</span></div>
-            <div><span>对话接口</span><span>POST /v1/chat/completions</span></div>
-            <div><span>模型与分组</span><span>21 个 / 7 个</span></div>
-            <div><span>计费货币</span><span>人民币（￥）</span></div>
-            <div><span>计费方式</span><span>按量扣减</span></div>
-            <div><span>账号保护</span><span>邮箱验证</span></div>
-          </div>
-          <div class="copy-row">
-            <a class="btn btn-ghost btn-sm" href="https://paoluapi.xyz/pricing">查看价格</a>
-            <a class="btn btn-ghost btn-sm" href="https://paoluapi.xyz/console">进入控制台</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- ===================== CLOSING CTA ===================== -->
-  <section class="endcta" id="ph-join">
-    <img src="new-api-assets/img/tavern-night.jpg" alt="像素风格的夜晚酒馆外观：暖色窗光、猫爪形状的招牌、湿漉漉的石板路" width="1376" height="768" loading="lazy" decoding="async" />
-    <div class="scrim" aria-hidden="true"></div>
-    <div class="endcta-in">
-      <div class="endcta-copy rv">
-        <h2>先把第一条请求跑通</h2>
-        <p>登录控制台生成 Key，替换一行地址，就能在同一个入口调用 21 个模型。</p>
-        <div class="hero-ctas">
-          <a class="btn" href="https://paoluapi.xyz/console">进入控制台</a>
-          <a class="btn btn-ghost" href="https://paoluapi.xyz/pricing">查看价格</a>
-        </div>
-      </div>
-    </div>
-  </section>
-</main>
-
-<footer class="foot" id="ph-foot">
-  <div class="wrap">
-    <div class="foot-grid">
-      <div>
-        <div class="foot-brand">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <b>PAOLU API</b>
-        </div>
-        <p class="foot-about">基于 New API 构建的模型网关，一个入口调用多家上游模型。</p>
-      </div>
-      <div>
-        <h4>产品</h4>
-        <ul>
-          <li><a href="https://paoluapi.xyz/console">控制台</a></li>
-          <li><a href="https://paoluapi.xyz/pricing">价格</a></li>
-          <li><a href="https://paoluapi.xyz/docs">文档</a></li>
+        <ul class="four">
+          <li><span class="glyph" aria-hidden="true">//</span><h3>高性能</h3><p>支持高并发和自动负载均衡。</p></li>
+          <li><span class="glyph" aria-hidden="true">$</span><h3>透明计费</h3><p>按量付费，实时监控使用情况。</p></li>
+          <li><span class="glyph" aria-hidden="true">@</span><h3>团队协作</h3><p>多用户管理，灵活分配权限。</p></li>
+          <li><span class="glyph" aria-hidden="true">{ }</span><h3>开源项目</h3><p>社区驱动、可自托管、易于扩展。</p></li>
         </ul>
-      </div>
-      <div>
-        <h4>本页</h4>
-        <ul>
-          <li><a href="#ph-models">模型目录</a></li>
-          <li><a href="#ph-compat">兼容客户端</a></li>
-          <li><a href="#ph-start">三步接入</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>账户</h4>
-        <ul>
-          <li><a href="https://paoluapi.xyz/login">登录</a></li>
-          <li><a href="https://paoluapi.xyz/console">用量与账单</a></li>
-        </ul>
-      </div>
+      </section>
+
+      <!-- ========== 04 上手 ========== -->
+      <section class="view view--start" id="workflow" aria-labelledby="start-title">
+        <header class="view-head view-head--center">
+          <p class="tag">工作流程</p>
+          <h2 id="start-title" tabindex="-1">三步快速上手</h2>
+        </header>
+
+        <ol class="steps">
+          <li class="step">
+            <span class="step-n">1</span><h3>配置</h3>
+            <p>添加 API 密钥，设置渠道并配置访问权限。</p>
+          </li>
+          <li class="step">
+            <span class="step-n">2</span><h3>连接</h3>
+            <p>通过 OpenAI、Claude、Gemini 以及其他兼容 API 路由接入。</p>
+          </li>
+          <li class="step">
+            <span class="step-n">3</span><h3>监控</h3>
+            <p>通过实时分析跟踪用量、成本和性能。</p>
+          </li>
+        </ol>
+
+        <div class="start-foot">
+          <div class="chips chips--inline">
+            <a class="chip-card" href="#protocol"><b data-count="50" data-suffix="+">50+</b><small>兼容 API 路由</small></a>
+            <a class="chip-card" href="#features"><b data-count="10" data-suffix="+">10+</b><small>调度控制能力</small></a>
+          </div>
+          <a class="btn" href="https://paoluapi.xyz/console"><span>前往仪表板</span><span class="btn-arrow" aria-hidden="true"></span></a>
+        </div>
+      </section>
     </div>
-    <div class="foot-legal">
-      <span>© 2026 PaoluAPI. 为热爱与创造而生。</span>
-      <span>基于 New API 构建</span>
-      <span class="foot-links">
-        <a href="https://paoluapi.xyz/user-agreement">用户协议</a>
+
+    <nav class="rail" aria-label="视窗导航">
+      <a class="rail-btn" href="#overview" data-view="overview" aria-current="true"><span class="num">01</span>概览</a>
+      <a class="rail-btn" href="#protocol" data-view="protocol"><span class="num">02</span>接口</a>
+      <a class="rail-btn" href="#features" data-view="features"><span class="num">03</span>能力</a>
+      <a class="rail-btn" href="#workflow" data-view="workflow"><span class="num">04</span>上手</a>
+    </nav>
+
+    <footer class="statusbar">
+      <span class="sb-left"><span id="sbView">概览</span> · v1.0.0-rc.41<span aria-hidden="true"> · </span><button class="sb-notice" id="noticeOpen" type="button" aria-haspopup="dialog">地区提醒</button></span>
+      <span class="sb-mid">© 2026 PaoluAPI. 为热爱与创造而生。</span>
+      <span class="sb-right">
+        <span class="routes">
+          <a href="https://paoluapi.xyz/">主页</a><span aria-hidden="true">·</span>
+          <a href="https://paoluapi.xyz/console">控制台</a><span aria-hidden="true">·</span>
+          <a href="https://paoluapi.xyz/pricing">模型广场</a><span aria-hidden="true">·</span>
+          <a href="https://paoluapi.xyz/docs">文档</a><span aria-hidden="true">·</span>
+        </span>
+        <a class="sb-credit" href="https://www.bilibili.com/opus/1256130994691375107" target="_blank" rel="noopener">人设插画 @ZipZipPipe</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://paoluapi.xyz/user-agreement">用户协议</a><span aria-hidden="true">·</span>
         <a href="https://paoluapi.xyz/privacy-policy">隐私政策</a>
+        <span class="sb-copy">© 2026 New API. 版权所有，由项目贡献者设计与开发。</span>
       </span>
+    </footer>
+  </div>
+
+  <!-- ============ 地区提醒 ============
+       首次访问弹一次，本机确认后不再显示；?notice=1 / ?notice=0 可强制显示/隐藏（跟 ?theme=、?char= 一个路子）。
+       显隐由上面那条 #noticeAck:checked 的 CSS 规则决定——checkbox 放在 .notice 前面当兄弟节点，
+       所以就算 JS 没跑起来，点「我已知悉并继续访问」这个 <label> 也能关掉弹层（只是不会记住选择，
+       底部状态条那个回看入口也是 JS 才挂出来的）。文案是站方给的原文，逐字不动。 -->
+  <input class="notice-ack" id="noticeAck" type="checkbox" aria-hidden="true" tabindex="-1">
+  <div class="notice" id="notice" role="dialog" aria-modal="true" aria-labelledby="noticeTitle" aria-describedby="noticeBody">
+    <div class="notice__card">
+      <p class="notice__kicker">Service notice · 服务范围</p>
+      <h2 class="notice__title" id="noticeTitle">给予中国大陆用户的提醒</h2>
+      <p class="notice__body" id="noticeBody">根据中国大陆的法律法规限制，本站不为来自中国大陆的用户提供任何大模型服务，请来自中国大陆的用户自觉停止访问本站</p>
+      <p class="notice__stopped">感谢配合。请手动关闭此标签页。</p>
+      <div class="notice__actions">
+        <label class="btn notice__ok" id="noticeOk" for="noticeAck" tabindex="0" role="button"><span>我已知悉并继续访问</span><span class="btn-arrow" aria-hidden="true"></span></label>
+        <button class="notice__stop" id="noticeStop" type="button">我已知悉，停止访问本站</button>
+      </div>
+      <p class="notice__meta" id="noticeMeta">确认后本机不再弹出；想再看一遍，点底部状态条的「地区提醒」。</p>
     </div>
   </div>
-</footer>
 
 <script>
 (function () {
-  'use strict';
+  var root = document.documentElement;
+  var VIEWS = ['overview', 'protocol', 'features', 'workflow'];
+  var NAMES = { overview: '概览', protocol: '接口', features: '能力', workflow: '上手' };
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var sbView = document.getElementById('sbView');
+  var railLinks = Array.prototype.slice.call(document.querySelectorAll('.rail-btn'));
+  var counted = [];
 
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var $ = function (id) { return document.getElementById(id); };
-
-  /* ---------- Theme toggle ---------- */
-  var root = $('ph-home');
-  var themeBtn = $('ph-theme');
-  var themeLabel = $('ph-theme-label');
-  function paintTheme() {
-    /* Never touches document.documentElement: the host app owns that. */
-    var light = root.getAttribute('data-theme') === 'light';
-    themeLabel.textContent = light ? '日间' : '夜间';
-    themeBtn.setAttribute('aria-pressed', light ? 'true' : 'false');
+  /* ---- 主题切换 ---- */
+  function syncThemeUi(t) {
+    var b = document.getElementById('themeToggle');
+    if (!b) return;
+    var dark = t === 'dark';
+    b.textContent = dark ? '浅色' : '深色';
+    b.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    b.setAttribute('aria-label', dark ? '切换到浅色主题' : '切换到深色主题');
   }
-  paintTheme();
-  themeBtn.addEventListener('click', function () {
-    var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    root.setAttribute('data-theme', next);
-    try { localStorage.setItem('paolu-theme', next); } catch (e) {}
-    paintTheme();
-  });
-
-  /* ---------- Scroll reveal (IntersectionObserver, no scroll listener) ---------- */
-  var revealables = document.querySelectorAll('.rv');
-  if (!('IntersectionObserver' in window) || reduce.matches) {
-    Array.prototype.forEach.call(revealables, function (el) { el.classList.add('in'); });
-  } else {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('in');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
-    Array.prototype.forEach.call(revealables, function (el) { io.observe(el); });
+  syncThemeUi(root.getAttribute('data-theme') || 'light');
+  var toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('paolu.theme', next); } catch (e) {}
+      syncThemeUi(next);
+    });
   }
 
-  /* ---------- Live gateway log ---------- */
-  var termBody = $('ph-term-body');
-  var pauseBtn = $('ph-term-pause');
-  var statusEl = $('ph-term-status');
-  var feed = [
-    { k: 'ok', n: 'gpt-5.6-sol', g: 'Codex', ms: '398ms' },
-    { k: 'ok', n: 'claude-fable-5', g: 'Claude', ms: '512ms' },
-    { k: 'ok', n: 'gpt-5.6-luna', g: 'Luna', ms: '302ms' },
-    { k: 'warn', m: 'Claude 额度接近阈值，已降权' },
-    { k: 'ok', n: 'deepseek-v4.1-flash', g: 'Deepseek', ms: '244ms' },
-    { k: 'err', m: 'Qwen 上游返回 502，已切换到备用通道' },
-    { k: 'ok', n: 'claude-opus-4-8', g: 'Claude', ms: '604ms' },
-    { k: 'ok', n: 'qwen3.8-max', g: 'Qwen', ms: '455ms' },
-    { k: 'ok', n: 'glm-5.3-flashx', g: 'GLM', ms: '318ms' },
-    { k: 'ok', n: 'kimi-k3', g: 'KIMI', ms: '431ms' },
-    { k: 'ok', n: 'glm-5.3-flash', g: 'GLM', ms: '276ms' }
-  ];
-  var feedAt = 0, running = !reduce.matches, timer = null;
-  /* One shared clock, so appended rows never show a timestamp going backwards. */
-  var clock = 12 * 3600 + 4 * 60 + 15;
+  /* ---- 看板娘角色：换人 = 换插画 + 换整页强调色 ---- */
+  var CHARS = {
+    gpt:      { idx: '01', name: 'GPT · 大白龙',     alt: 'GPT 小姐 · 大白龙：白发紫眸的龙娘，浅色的角，白色长裙，紫白色的翼与尾巴' },
+    claude:   { idx: '02', name: 'Claude · 小克',     alt: 'Claude 小克：橙色长发与花朵发饰，维多利亚式裙装' },
+    deepseek: { idx: '03', name: 'DeepSeek · 大肥鱼', alt: 'DeepSeek 大肥鱼：蓝发、鳍耳、鲸尾与蓝色女仆装' },
+    gemini:   { idx: '04', name: 'Gemini · 猫猫',     alt: 'Gemini 猫猫／洁米奈：紫蓝色头发、猫耳与尾巴，粉金异色瞳' },
+    glm:      { idx: '05', name: 'GLM · 坏狐狸',      alt: 'GLM 嘎啦嘛／坏狐狸：黑发蓝色内层、大狐耳与白尖大尾巴，哥特裙与眼罩' },
+    grok:     { idx: '06', name: 'Grok · 大小姐',     alt: 'Grok 大小姐：金色双马尾与小王冠，黑金服饰、红领口与蝠翼' }
+  };
+  var sceneImg = document.getElementById('sceneImg');
+  var mascotImg = document.getElementById('mascotImg');
+  var wideMq = window.matchMedia('(min-width: 901px)');
+  var currentSlug = null;
+  var charBtns = Array.prototype.slice.call(document.querySelectorAll('.char-btn'));
 
-  function pad2(v) { return (v < 10 ? '0' : '') + v; }
-  function stamp() {
-    clock += 1 + (feedAt % 2);
-    return '[' + pad2(Math.floor(clock / 3600) % 24) + ':' + pad2(Math.floor(clock / 60) % 60) + ':' + pad2(clock % 60) + ']';
-  }
-  function cell(cls, text) {
-    var node = document.createElement('span');
-    node.className = cls;
-    node.textContent = text;
-    return node;
-  }
-  function buildLine(item) {
-    var line = document.createElement('span');
-    line.className = 'ln ' + item.k + ' ' + (item.k === 'ok' ? 'req' : 'msg') + (reduce.matches ? '' : ' fresh');
-    line.appendChild(cell('t', stamp()));
-    if (item.k === 'ok') {
-      line.appendChild(cell('m', item.n));
-      line.appendChild(cell('g', item.g));
-      line.appendChild(cell('d', item.ms));
-      line.appendChild(cell('s', 'ok'));
-    } else {
-      line.appendChild(cell(item.k === 'err' ? 'tag' : 'tag-warn', item.k));
-      line.appendChild(cell('x', item.m));
+  /* 换人 = 换氛围底（assets/scenes 场景图）+ 换本体（assets/chars 免扣图）。
+     窄屏 .mascot 是 display:none，那时不下载免扣图（省 260–590KB），
+     视口变宽后补上。src 相同就不重设，避免无意义的重解码。 */
+  function paintChar() {
+    var c = CHARS[currentSlug];
+    if (!c) return;
+    var scene = 'assets/scenes/' + c.idx + '-' + currentSlug + '.webp';
+    if (sceneImg) {
+      if (sceneImg.getAttribute('src') !== scene) sceneImg.src = scene;
+      sceneImg.alt = c.alt;            /* 无障碍描述挂在这张（窄屏唯一可见插画） */
     }
-    return line;
-  }
-  /* Keep the newest rows and drop the oldest until the panel stops
-     overflowing, so a scrollbar can never appear. */
-  function trimLog() {
-    while (termBody.children.length > 1 && termBody.scrollHeight > termBody.clientHeight) {
-      termBody.removeChild(termBody.firstChild);
+    if (mascotImg && wideMq.matches) {
+      var cut = 'assets/chars/' + c.idx + '-' + currentSlug + '-cut.webp';
+      if (mascotImg.getAttribute('src') !== cut) mascotImg.src = cut;
     }
   }
-  function tick() {
-    if (!running || document.hidden) { return; }
-    termBody.appendChild(buildLine(feed[feedAt % feed.length]));
-    feedAt++;
-    trimLog();
-  }
-  trimLog();
-  if (running) { timer = window.setInterval(tick, 2200); }
+  if (wideMq.addEventListener) wideMq.addEventListener('change', paintChar);
+  else if (wideMq.addListener) wideMq.addListener(paintChar);
 
-  pauseBtn.addEventListener('click', function () {
-    running = !running;
-    if (running && !timer) { timer = window.setInterval(tick, 2200); }
-    pauseBtn.setAttribute('aria-pressed', running ? 'false' : 'true');
-    pauseBtn.textContent = running ? '暂停' : '继续';
-    statusEl.textContent = running ? '7 个分组可用' : '日志已暂停';
-  });
-
-  /* ---------- Code tabs + copy ---------- */
-  var tabs = [
-    { tab: $('ph-tab-node'), pane: $('ph-pane-node') },
-    { tab: $('ph-tab-py'), pane: $('ph-pane-py') },
-    { tab: $('ph-tab-curl'), pane: $('ph-pane-curl') }
-  ];
-  tabs.forEach(function (pair) {
-    pair.tab.addEventListener('click', function () {
-      tabs.forEach(function (other) {
-        var on = other === pair;
-        other.tab.setAttribute('aria-selected', on ? 'true' : 'false');
-        other.pane.classList.toggle('on', on);
-      });
+  function setChar(slug, persist) {
+    var c = CHARS[slug];
+    if (!c) return;
+    currentSlug = slug;
+    root.setAttribute('data-char', slug);
+    paintChar();
+    charBtns.forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-char') === slug ? 'true' : 'false');
     });
+    if (persist) { try { localStorage.setItem('paolu.char', slug); } catch (e) {} }
+  }
+  setChar(root.getAttribute('data-char') || 'gpt', false);
+  charBtns.forEach(function (b) {
+    b.addEventListener('click', function () { setChar(b.getAttribute('data-char'), true); });
   });
 
-  var copyBtn = $('ph-copy');
-  var copyMsg = $('ph-copy-msg');
-  function currentSnippet() {
-    var active = document.querySelector('.code-pane.on .code');
-    return active ? active.innerText : '';
+  /* ---- 数字计数：每屏首次出现时跑一次 ---- */
+  function countUp(el) {
+    var target = parseFloat(el.getAttribute('data-count')) || 0;
+    var suffix = el.getAttribute('data-suffix') || '';
+    if (reduce) { el.textContent = target + suffix; return; }
+    var t0 = performance.now(), dur = 1000;
+    var tick = function (now) {
+      var p = Math.min(1, (now - t0) / dur);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(target * eased) + suffix;
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    el.textContent = '0' + suffix;
+    requestAnimationFrame(tick);
   }
-  function flashCopied(okText) {
-    copyMsg.textContent = okText;
-    copyMsg.classList.add('on');
-    window.setTimeout(function () { copyMsg.classList.remove('on'); }, 2000);
+  function runCounters(view) {
+    if (!view) return;
+    Array.prototype.forEach.call(view.querySelectorAll('[data-count]'), function (el) {
+      if (counted.indexOf(el) !== -1) return;
+      counted.push(el);
+      countUp(el);
+    });
   }
-  copyBtn.addEventListener('click', function () {
-    var text = currentSnippet();
-    var done = function () { flashCopied('已复制到剪贴板'); };
-    var fail = function () { flashCopied('复制失败，请手动选择'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text) ? done() : fail(); });
-    } else {
-      legacyCopy(text) ? done() : fail();
+
+  /* ---- 视窗状态同步（切换本身由 :target 完成，此处只同步 ARIA 与计数） ---- */
+  function currentId() {
+    var h = location.hash.replace('#', '');
+    return VIEWS.indexOf(h) === -1 ? 'overview' : h;
+  }
+  function syncView(focusHeading) {
+    var id = currentId();
+    railLinks.forEach(function (a) {
+      if (a.getAttribute('data-view') === id) { a.setAttribute('aria-current', 'true'); }
+      else { a.removeAttribute('aria-current'); }
+    });
+    if (sbView) sbView.textContent = NAMES[id] || '概览';
+    var view = document.getElementById(id);
+    runCounters(view);
+    if (focusHeading && view) {
+      var h = view.querySelector('h1, h2');
+      if (h) h.focus({ preventScroll: true });
+    }
+  }
+  window.addEventListener('hashchange', function () { syncView(false); });
+  railLinks.forEach(function (a) {
+    a.addEventListener('click', function () { setTimeout(function () { syncView(true); }, 0); });
+  });
+  syncView(false);
+
+  /* ---- 地区提醒 ----------------------------------------------------------
+     显示/隐藏始终由 CSS 那条 #noticeAck:checked 决定，这里只翻 checkbox，
+     所以不会出现「JS 半路挂了、弹层永远关不掉」的情况。
+     - 首次访问（localStorage 里没有记录）弹一次；确认后本机不再弹；
+     - ?notice=1 / ?notice=0 强制显示 / 隐藏（测试与截图用）；
+     - Esc 等同「我已知悉」；弹层开着的时候 1-4/方向键不切屏（见下面的键盘处理）；
+     - 「停止访问」不写 localStorage：刷新就回到提醒，免得误点一次被永久锁在外面。 */
+  var ack = document.getElementById('noticeAck');
+  var notice = document.getElementById('notice');
+  var noticeOk = document.getElementById('noticeOk');
+  var noticeStop = document.getElementById('noticeStop');
+  var noticeOpen = document.getElementById('noticeOpen');
+  var stage = document.querySelector('.stage');
+  var NOTICE_KEY = 'paolu.notice';
+  var noticeForce = /[?&]notice=([01])/.exec(location.search);
+  function noticeShow() { return !!(ack && !ack.checked); }
+  function noticeStore(read) {
+    try {
+      if (read) return localStorage.getItem(NOTICE_KEY) === '1';
+      return null;
+    } catch (err) { return read ? false : null; }
+  }
+  function noticeSave() {
+    try { localStorage.setItem(NOTICE_KEY, '1'); } catch (err) {}
+  }
+  function noticeSync() {
+    var open = noticeShow();
+    if (stage) stage.inert = open;                      /* 弹层开着时，底下的舞台不接键盘/焦点 */
+    if (open && noticeOk) noticeOk.focus({ preventScroll: true });
+  }
+  function noticeClose(refocus) {
+    if (!ack) return;
+    ack.checked = true;
+    noticeSave();
+    noticeSync();
+    if (refocus && noticeOpen) noticeOpen.focus({ preventScroll: true });
+  }
+  if (ack) {
+    ack.checked = noticeForce ? noticeForce[1] === '0' : !!noticeStore(true);
+    ack.addEventListener('change', function () { if (ack.checked) noticeSave(); noticeSync(); });
+  }
+  if (noticeStop) noticeStop.addEventListener('click', function () {
+    if (notice) notice.classList.add('notice--stopped');
+    var title = document.getElementById('noticeTitle');
+    if (title) title.textContent = '已停止访问本站';
+    try { window.close(); } catch (err) {}
+  });
+  if (noticeOpen) noticeOpen.addEventListener('click', function () {
+    if (!ack) return;
+    ack.checked = false;
+    noticeSync();
+  });
+  /* <label> 天生不吃键盘：补一个 Enter/Space 激活（无 JS 时鼠标点仍然有效） */
+  if (noticeOk) noticeOk.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); noticeClose(false); }
+  });
+  noticeSync();
+
+  /* ---- 键盘：1-4 切屏，方向键翻屏 ---- */
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (noticeShow()) {                                  /* 提醒开着：只认 Esc，别在背后偷偷切屏 */
+      if (e.key === 'Escape') { noticeClose(true); e.preventDefault(); }
+      return;
+    }
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    var id = currentId(), i = VIEWS.indexOf(id);
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= VIEWS.length) {
+      location.hash = VIEWS[n - 1]; syncView(true); e.preventDefault(); return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      location.hash = VIEWS[(i + 1) % VIEWS.length]; syncView(true); e.preventDefault();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      location.hash = VIEWS[(i - 1 + VIEWS.length) % VIEWS.length]; syncView(true); e.preventDefault();
     }
   });
-  function legacyCopy(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', 'readonly');
-    ta.style.position = 'fixed';
-    ta.style.top = '-1000px';
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    document.body.removeChild(ta);
-    return ok;
-  }
-
-  /* ---------- Model catalog: search, vendor + group filter, expand ---------- */
-  var tbody = $('ph-model-rows');
-  var moreModels = [
-    { n: 'claude-fable-5', v: 'Anthropic', c: '1M', t: '推理 工具 多模态', g: 'Claude', gs: 'default Claude', d: '面向创意写作、分析与可控智能体工作流的 Claude 模型' },
-    { n: 'claude-sonnet-5-5', v: 'Anthropic', c: '1M', t: '推理 工具 多模态', g: 'Claude', gs: 'default Claude', d: '面向日常编程、智能体与知识工作的快速 Claude 档位' },
-    { n: 'claude-fable-5.1', v: 'Anthropic', c: '未标注', t: '推理 工具 多模态', g: 'Claude', gs: 'default Claude', d: '' },
-    { n: 'gpt-5.6-luna', v: 'OpenAI', c: '1.1M', t: '推理 工具 多模态', g: 'Luna', gs: 'Luna', d: '高性价比的 GPT-5.6，适合快速、高吞吐的负载' },
-    { n: 'gpt-6-luna', v: 'OpenAI', c: '1.1M', t: '推理 工具 多模态', g: 'Luna', gs: 'Luna', d: 'OpenAI 面向高频、高并发任务的高效档位' },
-    { n: 'gpt-6-sol', v: 'OpenAI', c: '1.1M', t: '推理 工具 多模态', g: 'Codex', gs: 'default Codex', d: '面向复杂编程与智能体工作流的 OpenAI 模型' },
-    { n: 'gpt-6.1-sol', v: 'OpenAI', c: '1.1M', t: '推理 工具 多模态', g: 'Codex', gs: 'default Codex', d: '接近 Astra 的表现，成本更低，适合复杂编程与专业工作' },
-    { n: 'glm-5.1', v: 'Z.AI', c: '200K', t: '推理 开源权重 工具', g: 'GLM', gs: 'default GLM', d: '面向智能体工程、终端操作与代码仓库生成的 GLM 编程模型' },
-    { n: 'glm-5.3', v: 'Z.AI', c: '1M', t: '推理 开源权重 工具', g: 'GLM', gs: 'default GLM', d: '面向长程编程、智能体与复杂项目交付的 GLM 旗舰模型' },
-    { n: 'glm-5.3-flashx', v: 'Z.AI', c: '1M', t: '推理 开源权重 多模态', g: 'GLM', gs: 'default GLM', d: 'GLM-5.3-Flash 的高速服务版本，面向编程与智能体工作流' },
-    { n: 'qwen3.8-flash', v: 'Alibaba', c: '1M', t: '推理 工具 多模态', g: 'Qwen', gs: 'default Qwen', d: '面向视觉推理、文档理解与智能体任务的 Qwen 视觉语言模型' },
-    { n: 'deepseek-v4.1-flash', v: 'DeepSeek', c: '未标注', t: '推理 工具', g: 'Deepseek', gs: 'default Deepseek', d: '' },
-    { n: 'deepseek-v4.1-flash-expires-on-0910', v: 'DeepSeek', c: '未标注', t: '推理 工具', g: 'Deepseek', gs: 'default Deepseek', d: '限时档位，到期后由常规档位承接' }
-  ];
-  var builtExtras = false;
-  var search = $('ph-search');
-  var vendorChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-vendor]'));
-  var groupChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-group]'));
-  var moreBtn = $('ph-more');
-  var emptyEl = $('ph-model-empty');
-  var countEl = $('ph-model-count');
-  var vendor = 'all';
-  var group = 'all';
-  var expanded = false;
-
-  function allRows() {
-    return Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-  }
-  function buildExtras() {
-    if (builtExtras) { return; }
-    moreModels.forEach(function (m) {
-      var tr = document.createElement('tr');
-      tr.className = 'extra hide';
-      tr.setAttribute('data-name', m.n);
-      tr.setAttribute('data-vendor', m.v);
-      tr.setAttribute('data-groups', m.gs);
-      if (m.d) { tr.setAttribute('title', m.d); }
-      var nameTd = document.createElement('td');
-      nameTd.className = 'm';
-      var nameSpan = document.createElement('span');
-      nameSpan.textContent = m.n;
-      nameSpan.setAttribute('title', m.n);
-      nameTd.appendChild(nameSpan);
-      tr.appendChild(nameTd);
-      [['', m.v], ['num col-ctx', m.c], ['tags col-tags', m.t], ['num col-group', m.g]].forEach(function (pair) {
-        var td = document.createElement('td');
-        td.className = pair[0];
-        td.textContent = pair[1];
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    builtExtras = true;
-  }
-  function applyCatalog() {
-    if (expanded) { buildExtras(); }
-    var q = (search.value || '').trim().toLowerCase();
-    var rows = allRows();
-    var shown = 0;
-    rows.forEach(function (row) {
-      var isExtra = row.classList.contains('extra');
-      var matchVendor = vendor === 'all' || row.getAttribute('data-vendor') === vendor;
-      var rowGroups = (row.getAttribute('data-groups') || '').split(' ');
-      var matchGroup = group === 'all' || rowGroups.indexOf(group) !== -1;
-      var name = row.getAttribute('data-name').toLowerCase();
-      var matchText = !q || name.indexOf(q) !== -1 || row.textContent.toLowerCase().indexOf(q) !== -1;
-      var visible = matchVendor && matchGroup && matchText && (expanded || !isExtra);
-      row.classList.toggle('hide', !visible);
-      if (visible) { shown++; }
-    });
-    emptyEl.classList.toggle('on', shown === 0);
-    var total = rows.length + (builtExtras ? 0 : moreModels.length);
-    countEl.textContent = '显示 ' + shown + ' 个模型，共 ' + total + ' 个可用';
-    moreBtn.textContent = expanded ? '收起列表' : '展开全部';
-    moreBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-  }
-  search.addEventListener('input', applyCatalog);
-  vendorChips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      vendor = chip.getAttribute('data-vendor');
-      vendorChips.forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
-      applyCatalog();
-    });
-  });
-  groupChips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      group = chip.getAttribute('data-group');
-      groupChips.forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
-      applyCatalog();
-    });
-  });
-  moreBtn.addEventListener('click', function () {
-    expanded = !expanded;
-    applyCatalog();
-  });
-  applyCatalog();
 })();
 </script>
-</div>
 </body>
 </html>
+
